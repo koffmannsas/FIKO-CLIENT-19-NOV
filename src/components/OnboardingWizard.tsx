@@ -24,6 +24,7 @@ import {
   HelpCircle
 } from 'lucide-react';
 import { useCurrency } from '../lib/currency';
+import FikoConnectLogo from './FikoConnectLogo';
 
 interface OnboardingWizardProps {
   onComplete: (onboardingData: any) => void;
@@ -138,9 +139,9 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
     <div className="w-full max-w-5xl mx-auto p-4 md:p-8 text-white">
       {/* HEADER SECTION */}
       <div className="text-center mb-8">
-        <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight bg-gradient-to-r from-white via-gray-300 to-[#E10600] bg-clip-text text-transparent">
-          Fiko Connect <span className="text-fiko-red">2.0</span>
-        </h1>
+        <div className="flex justify-center mb-3">
+          <FikoConnectLogo variant="full" size="lg" surface="dark" />
+        </div>
         <p className="text-gray-400 mt-2 text-md md:text-lg">
           Connectez votre WhatsApp en 5 minutes et donnez un commercial IA intelligent à votre business.
         </p>
@@ -906,7 +907,7 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
             <div className="text-center space-y-4 mb-8">
               <div className="relative inline-flex items-center justify-center">
                 <div className="w-20 h-20 bg-red-950/20 rounded-full border border-red-900/40 flex items-center justify-center">
-                  <Bot size={36} className="text-[#E10600] animate-pulse" />
+                  <FikoConnectLogo variant="symbol" size="md" surface="dark" animated />
                 </div>
                 {/* Spinning loader outer ring */}
                 <span className="absolute w-24 h-24 border-2 border-[#E10600] border-t-transparent rounded-full animate-spin"></span>

@@ -1725,7 +1725,7 @@ export default function Dashboard({ onboardingData, isDemoMode = false, onUpgrad
                 <h3 className="text-lg font-black text-white mt-1.5">Vision Financière : Abonnements Récurrents KCG</h3>
                 <p className="text-xs text-gray-400">Modélisez les rendements mensuels en ajustant le nombre d'entreprises clientes actives.</p>
               </div>
-              <div className="bg-black/60 p-4 rounded-xl border border-zinc-900 text-right min-w-[280px]">
+              <div className="bg-black/60 p-4 rounded-xl border border-zinc-900 sm:text-right w-full sm:w-auto sm:min-w-[280px]">
                 <span className="text-[9px] text-gray-500 uppercase font-black block mb-1">REVENU MENSUEL RÉCURRENT (MRR) PROJETÉ</span>
                 <span className="text-2xl font-mono font-black text-[#25D366] block">
                   {formatMoney(Math.round(projectedClientsCount * 0.60 * 19900 + projectedClientsCount * 0.25 * 49900 + projectedClientsCount * 0.10 * 99000 + projectedClientsCount * 0.05 * 199000), { suffix: '/mois' })}

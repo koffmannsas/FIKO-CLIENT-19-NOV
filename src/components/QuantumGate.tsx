@@ -39,8 +39,11 @@ import {
   Lock,
   User,
   ArrowRight,
-  ChevronLeft
+  ChevronLeft,
+  X
 } from 'lucide-react';
+import FikoConnectLogo from './FikoConnectLogo';
+import MobileQuantumEntry from './MobileQuantumEntry';
 
 enum OperationType {
   CREATE = 'create',
@@ -468,7 +471,10 @@ export default function QuantumGate({ onEnter }: QuantumGateProps) {
       <div className="min-h-screen bg-[#050505] text-white flex flex-col items-center justify-center p-4">
         {activationStep === 'activating' ? (
           <div className="text-center space-y-6 max-w-md w-full">
-            <h2 className="text-3xl font-black text-[#E10600]">🚀 Activation...</h2>
+            <div className="flex justify-center">
+              <FikoConnectLogo variant="symbol" size="xl" surface="dark" animated />
+            </div>
+            <h2 className="text-3xl font-black text-[#E10600]">Activation...</h2>
             <div className="space-y-3 font-mono text-xs text-zinc-400">
                <p>Analyse secteur ✓</p>
                <p>Construction argumentaire ✓</p>
@@ -478,12 +484,15 @@ export default function QuantumGate({ onEnter }: QuantumGateProps) {
             </div>
           </div>
         ) : (
-          <div className="text-center space-y-6 max-w-sm w-full bg-zinc-900 p-8 rounded-2xl">
+          <div className="text-center space-y-6 max-w-sm w-full bg-zinc-900 p-8 rounded-2xl border border-zinc-800">
+            <div className="flex justify-center">
+              <FikoConnectLogo variant="full" size="sm" surface="dark" />
+            </div>
             <h2 className="text-xl font-bold">TEST MY FIKO</h2>
             <p className="text-sm text-zinc-400">Envoyez maintenant un message WhatsApp à votre propre numéro.</p>
             <button
                onClick={() => { setTestSent(true); setTimeout(completeActivation, 1000); }}
-               className="w-full bg-[#E10600] py-4 rounded-xl font-bold"
+               className="w-full bg-[#E10600] py-4 rounded-xl font-bold cursor-pointer"
             >
                {testSent ? 'IA Active !' : 'Tester mon IA maintenant'}
             </button>
@@ -493,49 +502,99 @@ export default function QuantumGate({ onEnter }: QuantumGateProps) {
     );
   }
 
-  // --- RENDER DYNAMIC 10-STEP ONBOARDING COMPONENT WIZARD ---
+  // --- RENDER DYNAMIC 10-STEP ONBOARDING COMPONENT WIZARD (HORIZONTAL PANELS) ---
   if (onboardActive) {
     const totalSteps = 10;
-    
-    return (
-      <div className="min-h-screen bg-[#050505] text-white flex flex-col items-center justify-center p-4 md:p-10 font-sans relative overflow-x-hidden">
-        {/* Cinematic background image with dark filters */}
-        <div 
-          className="absolute inset-0 z-0 bg-cover bg-center bg-no-repeat opacity-25"
-          style={{ backgroundImage: 'url("https://firebasestorage.googleapis.com/v0/b/krypton-ai-490214.firebasestorage.app/o/ba05e1c2-5730-44aa-bb43-73857f103596.png?alt=media&token=cd77592a-ea23-4e43-824d-21e388cd1b31")' }}
-        />
-        <div className="absolute inset-0 z-10 bg-gradient-to-t from-[#050505] via-transparent to-[#050505] pointer-events-none" />
+    const phases = [
+      { label: 'Identité', active: onboardStep === 1 },
+      { label: 'WhatsApp', active: onboardStep === 2 },
+      { label: 'Accès', active: onboardStep === 3 || onboardStep === 4 },
+      { label: 'Provision', active: onboardStep >= 5 && onboardStep <= 8 },
+      { label: 'Finalisation', active: onboardStep >= 9 },
+    ];
+    const currentPhaseIdx = phases.findIndex((p) => p.active);
 
-        {/* Master wizard card */}
-        <div className="relative z-20 w-full max-w-2xl bg-[#09090b]/90 border border-white/10 rounded-3xl p-6 md:p-10 shadow-[0_0_80px_rgba(225,6,0,0.12)] overflow-hidden backdrop-blur-md">
+    return (
+      <div className="min-h-[100dvh] bg-[#050505] text-white flex flex-col items-center justify-center p-3 sm:p-6 md:p-10 font-sans relative overflow-x-hidden">
+        {/* Atmospheric radial dark canvas (zero external fragile background dependencies) */}
+        <div
+          aria-hidden="true"
+          className="absolute inset-0 z-0 pointer-events-none"
+          style={{
+            background:
+              'radial-gradient(circle at 50% 15%, rgba(225, 6, 0, 0.18) 0%, rgba(5, 5, 5, 0) 65%)',
+          }}
+        />
+
+        {/* Master horizontal wizard card */}
+        <div className="relative z-20 w-full max-w-2xl bg-[#0a0a0f]/95 border border-white/10 rounded-3xl p-5 sm:p-7 md:p-10 shadow-[0_0_80px_rgba(225,6,0,0.12)] overflow-hidden backdrop-blur-xl">
           
           {/* Header Progress Indicators */}
-          <div className="flex items-center justify-between border-b border-white/5 pb-5 mb-6">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-[#E10600]/15 border border-[#E10600]/30 flex items-center justify-center text-[#E10600]">
-                <Sparkles size={16} />
-              </div>
-              <div>
-                <h4 className="text-xs font-black uppercase tracking-widest text-[#E10600]">FIKO IA ACTIVATION</h4>
-                <p className="text-[10px] text-zinc-400 font-mono mt-0.5">MANDATORY PROTOCOL ONBOARDING</p>
+          <div className="flex items-center justify-between border-b border-white/5 pb-4 mb-4 gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <FikoConnectLogo variant="symbol" size="sm" surface="dark" />
+              <div className="min-w-0">
+                <h4 className="text-xs font-black uppercase tracking-wider text-[#E10600] truncate">
+                  Création Espace Fiko Connect
+                </h4>
+                <p className="text-[11px] text-zinc-400 truncate mt-0.5">
+                  Configuration guidée étape par étape
+                </p>
               </div>
             </div>
-            <div className="text-right">
-              <span className="text-xl font-mono font-black text-white">{onboardStep > 10 ? 10 : onboardStep}</span>
-              <span className="text-xs text-zinc-500 font-mono"> / {totalSteps}</span>
+            <div className="flex items-center gap-3 shrink-0">
+              <div className="text-right tabular-nums">
+                <span className="text-lg font-mono font-black text-white">{onboardStep > 10 ? 10 : onboardStep}</span>
+                <span className="text-xs text-zinc-500 font-mono"> / {totalSteps}</span>
+              </div>
+              <button
+                type="button"
+                aria-label="Fermer l'assistant"
+                onClick={() => setOnboardActive(false)}
+                className="min-h-[40px] min-w-[40px] rounded-xl bg-zinc-900/80 hover:bg-zinc-800 border border-white/10 flex items-center justify-center text-zinc-400 hover:text-white transition cursor-pointer"
+              >
+                <X size={16} />
+              </button>
             </div>
           </div>
 
-          {/* Progress bar */}
-          <div className="w-full h-[3px] bg-white/5 rounded-full mb-8 overflow-hidden">
-            <div 
-              className="h-full bg-gradient-to-r from-[#E10600] to-red-650 transition-all duration-500" 
-              style={{ width: `${Math.min((onboardStep / totalSteps) * 100, 100)}%` }}
-            />
+          {/* Horizontal 5-Phase Stepper Strip */}
+          <div className="grid grid-cols-5 gap-1.5 mb-5">
+            {phases.map((phase, idx) => {
+              const completed = currentPhaseIdx > idx;
+              return (
+                <div key={phase.label} className="space-y-1.5">
+                  <div
+                    className={`h-1.5 rounded-full transition-colors duration-300 ${
+                      phase.active
+                        ? 'bg-[#E10600]'
+                        : completed
+                        ? 'bg-[#E10600]/60'
+                        : 'bg-zinc-800'
+                    }`}
+                  />
+                  <p
+                    className={`text-[10px] font-semibold truncate text-center ${
+                      phase.active ? 'text-white' : completed ? 'text-zinc-300' : 'text-zinc-500'
+                    }`}
+                  >
+                    {phase.label}
+                  </p>
+                </div>
+              );
+            })}
           </div>
 
-          {/* Steps Switchboard */}
-          <div className="space-y-6">
+          {/* Horizontal Animated Panel Container */}
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={onboardStep}
+              initial={{ opacity: 0, x: 28 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -28 }}
+              transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+              className="space-y-6"
+            >
 
             {/* STEP 1: Company Name */}
             {onboardStep === 1 && (
@@ -748,8 +807,8 @@ export default function QuantumGate({ onEnter }: QuantumGateProps) {
             {onboardStep === 5 && (
               <div className="space-y-8 py-6 text-center animate-in fade-in duration-500">
                 <div className="relative w-20 h-20 mx-auto flex items-center justify-center">
-                  <div className="absolute inset-0 rounded-full border-2 border-dashed border-[#E10600]/30 animate-spin" />
-                  <Loader2 className="animate-spin text-[#E10600]" size={36} />
+                  <div className="absolute inset-0 rounded-full border-2 border-dashed border-[#E10600]/40 animate-spin" />
+                  <FikoConnectLogo variant="symbol" size="md" surface="dark" animated />
                 </div>
                 
                 <div className="space-y-2">
@@ -770,8 +829,8 @@ export default function QuantumGate({ onEnter }: QuantumGateProps) {
             {onboardStep === 6 && (
               <div className="space-y-8 py-6 text-center animate-in fade-in duration-500">
                 <div className="relative w-20 h-20 mx-auto flex items-center justify-center">
-                  <div className="absolute inset-0 rounded-full border-2 border-dashed border-[#E10600]/30 animate-spin" />
-                  <Building2 className="text-[#E10600] animate-pulse" size={32} />
+                  <div className="absolute inset-0 rounded-full border-2 border-dashed border-[#E10600]/40 animate-spin" />
+                  <FikoConnectLogo variant="symbol" size="md" surface="dark" animated />
                 </div>
                 
                 <div className="space-y-2">
@@ -792,8 +851,8 @@ export default function QuantumGate({ onEnter }: QuantumGateProps) {
             {onboardStep === 7 && (
               <div className="space-y-8 py-6 text-center animate-in fade-in duration-500">
                 <div className="relative w-20 h-20 mx-auto flex items-center justify-center">
-                  <div className="absolute inset-0 rounded-full border-2 border-dashed border-[#E10600]/30 animate-spin" />
-                  <CreditCard className="text-[#E10600] animate-bounce" size={32} />
+                  <div className="absolute inset-0 rounded-full border-2 border-dashed border-[#E10600]/40 animate-spin" />
+                  <FikoConnectLogo variant="symbol" size="md" surface="dark" animated />
                 </div>
                 
                 <div className="space-y-2">
@@ -814,8 +873,8 @@ export default function QuantumGate({ onEnter }: QuantumGateProps) {
             {onboardStep === 8 && (
               <div className="space-y-8 py-6 text-center animate-in fade-in duration-500">
                 <div className="relative w-20 h-20 mx-auto flex items-center justify-center">
-                  <div className="absolute inset-0 rounded-full border-2 border-dashed border-[#E10600]/30 animate-spin" />
-                  <Brain className="text-[#E10600] animate-pulse" size={36} />
+                  <div className="absolute inset-0 rounded-full border-2 border-dashed border-[#E10600]/40 animate-spin" />
+                  <FikoConnectLogo variant="symbol" size="md" surface="dark" animated />
                 </div>
                 
                 <div className="space-y-2">
@@ -988,8 +1047,8 @@ export default function QuantumGate({ onEnter }: QuantumGateProps) {
             {onboardStep === 11 && (
               <div className="space-y-6 animate-in fade-in duration-500">
                 <div className="text-center space-y-2">
-                  <div className="w-14 h-14 rounded-full bg-emerald-950/20 border border-emerald-900/60 flex items-center justify-center text-[#25D366] mx-auto mb-3">
-                    <ShieldCheck size={26} className="stroke-[2px]" />
+                  <div className="flex justify-center mb-3">
+                    <FikoConnectLogo variant="full" size="sm" surface="dark" />
                   </div>
                   <h3 className="text-xl font-black text-white">Votre IA commerciale est maintenant active !</h3>
                   <p className="text-xs text-zinc-400">Le protocole de provision Fiko Connect s'est achevé sans erreur.</p>
@@ -1041,7 +1100,8 @@ export default function QuantumGate({ onEnter }: QuantumGateProps) {
               </div>
             )}
 
-          </div>
+            </motion.div>
+          </AnimatePresence>
         </div>
       </div>
     );
@@ -1049,15 +1109,15 @@ export default function QuantumGate({ onEnter }: QuantumGateProps) {
 
   return (
     <div className="min-h-screen bg-[#050505] text-white flex flex-col lg:flex-row overflow-x-hidden font-sans relative">
-      {/* 4K Cinematic Background Image */}
+      {/* 4K Cinematic Background Image (Desktop lg+) */}
       <div 
-        className="absolute inset-0 z-0 bg-cover bg-center bg-no-repeat transition-transform duration-1000"
+        className="hidden lg:block absolute inset-0 z-0 bg-cover bg-center bg-no-repeat transition-transform duration-1000"
         style={{ backgroundImage: 'url("https://firebasestorage.googleapis.com/v0/b/krypton-ai-490214.firebasestorage.app/o/ba05e1c2-5730-44aa-bb43-73857f103596.png?alt=media&token=cd77592a-ea23-4e43-824d-21e388cd1b31")' }}
       ></div>
       
       {/* Precision Ambient Gradient and Lighting protection overlay */}
-      <div className="absolute inset-0 z-10 bg-gradient-to-r from-[#030303]/90 via-[#030303]/45 to-[#050505]/95 pointer-events-none" />
-      <div className="absolute inset-0 z-10 bg-gradient-to-t from-[#050505] via-transparent to-[#050505]/65 pointer-events-none" />
+      <div className="hidden lg:block absolute inset-0 z-10 bg-gradient-to-r from-[#030303]/90 via-[#030303]/45 to-[#050505]/95 pointer-events-none" />
+      <div className="hidden lg:block absolute inset-0 z-10 bg-gradient-to-t from-[#050505] via-transparent to-[#050505]/65 pointer-events-none" />
 
       {/* Aurora visual movement effects */}
       <style>{`
@@ -1071,9 +1131,36 @@ export default function QuantumGate({ onEnter }: QuantumGateProps) {
           background: radial-gradient(circle at 35% 45%, rgba(225, 6, 0, 0.22) 0%, transparent 68%);
         }
       `}</style>
-      <div className="absolute inset-0 z-15 aurora-blur-glow pointer-events-none"></div>
+      <div className="hidden lg:block absolute inset-0 z-15 aurora-blur-glow pointer-events-none"></div>
 
-      {/* RENDER DYNAMIC COMPONENT SCENARIOS */}
+      {/* MOBILE & TABLET SINGLE-SCREEN APP PORTAL (< lg) */}
+      {!deployActive && (
+        <MobileQuantumEntry
+          currentUser={currentUser}
+          loading={loading}
+          onOpenLogin={() => {
+            if (currentUser) {
+              handleActivationCardClick();
+            } else {
+              setErrorMessage('');
+              setIdentityView('login');
+              setIdentityOpen(true);
+            }
+          }}
+          onStartSignup={() => {
+            setErrorMessage('');
+            setOnboardActive(true);
+            setOnboardStep(1);
+          }}
+          onEnterDemo={enterDemoSandbox}
+          onSignOut={async () => {
+            await signOut(auth);
+            setCurrentUser(null);
+          }}
+        />
+      )}
+
+      {/* RENDER DYNAMIC COMPONENT SCENARIOS (DESKTOP lg+ INTEGRAL PRESERVATION) */}
       <AnimatePresence mode="wait">
         
         {/* SCENARIO A: TERMINAL LOADING DEPLOYMENT STATE */}
@@ -1087,7 +1174,7 @@ export default function QuantumGate({ onEnter }: QuantumGateProps) {
             <div className="relative w-24 h-24 mb-8 flex items-center justify-center">
               <div className="absolute inset-0 rounded-full border-2 border-dashed border-[#E10600]/30 animate-spin" style={{ animationDuration: '10s' }} />
               <div className="absolute inset-2 rounded-full border-2 border-[#E10600] border-t-transparent animate-spin" style={{ animationDuration: '1.5s' }} />
-              <Brain size={32} className="text-[#E10600] animate-pulse" />
+              <FikoConnectLogo variant="symbol" size="md" surface="dark" animated />
             </div>
 
             <motion.div 
@@ -1109,7 +1196,7 @@ export default function QuantumGate({ onEnter }: QuantumGateProps) {
             </div>
           </motion.div>
         ) : (
-          <>
+          <div className="hidden lg:flex flex-col lg:flex-row flex-1 w-full">
             {/* LEFT SECTION (70% SCREEN WIDTH) */}
             <div className="flex-1 lg:flex-[0.7] flex flex-col justify-between p-6 lg:p-10 xl:p-14 relative z-20 min-h-screen">
               
@@ -1117,12 +1204,9 @@ export default function QuantumGate({ onEnter }: QuantumGateProps) {
               <div className="flex items-center justify-between w-full">
                 {/* Brand */}
                 <div className="flex items-center gap-4">
-                  <div className="flex flex-col select-none leading-none font-sans">
-                    <span className="text-[25px] font-black tracking-tighter text-[#E10600]">FIKO</span>
-                    <span className="text-[17px] font-extrabold tracking-[0.24em] text-white mt-1">CONNECT</span>
-                  </div>
-                  <div className="h-8 w-[1px] bg-white/15"></div>
-                  <div className="flex flex-col select-none font-sans justify-center">
+                  <FikoConnectLogo variant="full" size="md" surface="dark" />
+                  <div className="hidden sm:block h-8 w-[1px] bg-white/15"></div>
+                  <div className="hidden sm:flex flex-col select-none font-sans justify-center">
                     <span className="text-[9px] font-black tracking-[0.16em] text-zinc-400 uppercase leading-[1.1]">
                       L'INTELLIGENCE AFRICAINE
                     </span>
@@ -1267,11 +1351,8 @@ export default function QuantumGate({ onEnter }: QuantumGateProps) {
               
               <div className="space-y-8 my-auto">
                 <div className="flex flex-col items-center text-center">
-                  <div className="relative w-16 h-16 flex items-center justify-center mb-4">
-                    <div className="absolute -inset-1 rounded-2xl bg-[#E10600]/20 animate-pulse rotate-12" />
-                    <div className="w-14 h-14 rounded-2xl border-2 border-[#E10600]/80 bg-[#0C0C0E]/95 flex items-center justify-center text-[#E10600] relative z-10 shadow-[0_0_20px_rgba(225,6,0,0.45)]">
-                      <Sparkles size={24} className="stroke-[2px] animate-pulse" />
-                    </div>
+                  <div className="mb-4 flex items-center justify-center">
+                    <FikoConnectLogo variant="symbol" size="xl" surface="dark" />
                   </div>
 
                   <h2 className="text-xl font-black tracking-[0.22em] text-white uppercase font-sans">
@@ -1370,29 +1451,44 @@ export default function QuantumGate({ onEnter }: QuantumGateProps) {
               </div>
 
             </div>
-          </>
+          </div>
         )}
       </AnimatePresence>
 
-      {/* MODAL 1: FIKO LOGIN LAYER (Espace Client only) */}
+      {/* MODAL 1: FIKO LOGIN LAYER (Slide-up bottom sheet on mobile, centered glass modal on desktop) */}
       <AnimatePresence>
         {identityOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/80 backdrop-blur-md">
             <motion.div 
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              className="relative w-full max-w-md bg-[#0D0D10]/95 border border-white/10 rounded-3xl p-6 lg:p-8 shadow-2xl overflow-hidden"
+              initial={{ y: 40, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 40, opacity: 0 }}
+              transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+              className="relative w-full max-w-md bg-[#0D0D12]/95 border-t sm:border border-white/10 rounded-t-3xl sm:rounded-3xl p-6 pb-[max(1.75rem,env(safe-area-inset-bottom))] sm:p-8 shadow-2xl overflow-hidden"
             >
               <div className="absolute top-0 right-0 w-32 h-32 bg-red-600/10 rounded-full blur-2xl pointer-events-none" />
+
+              {/* Mobile bottom-sheet handle + close button */}
+              <div className="sm:hidden flex items-center justify-between mb-3">
+                <div className="w-8" />
+                <div className="w-10 h-1.5 rounded-full bg-zinc-700" />
+                <button
+                  type="button"
+                  aria-label="Fermer la connexion"
+                  onClick={() => setIdentityOpen(false)}
+                  className="min-h-[36px] min-w-[36px] flex items-center justify-center rounded-lg text-zinc-400 hover:text-white cursor-pointer"
+                >
+                  <X size={18} />
+                </button>
+              </div>
               
               {/* HEADER */}
-              <div className="text-center mb-6">
-                <div className="w-12 h-12 bg-[#E10600]/10 border border-[#E10600]/30 rounded-xl flex items-center justify-center text-[#E10600] mx-auto mb-3">
-                  <Lock size={20} />
+              <div className="text-center mb-5">
+                <div className="flex justify-center mb-3">
+                  <FikoConnectLogo variant="full" size="md" surface="dark" />
                 </div>
                 <h3 className="text-lg font-black tracking-tight text-white leading-tight">
-                  Espace Client Fiko 🔒
+                  Espace Client Fiko
                 </h3>
                 <p className="text-xs text-zinc-400 mt-1">
                   Connectez-vous à votre infrastructure de commandement.
@@ -1412,10 +1508,10 @@ export default function QuantumGate({ onEnter }: QuantumGateProps) {
                   <label className="text-xs font-bold text-zinc-400 uppercase tracking-tight">Adresse Email</label>
                   <input 
                     type="email" 
-                    placeholder="Ex: review@krypton-ia.tech" 
+                    placeholder="Ex: contact@entreprise.com" 
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="w-full bg-black/60 border border-white/10 p-3.5 rounded-xl text-white focus:border-[#E10600] focus:outline-none transition-colors text-sm"
+                    className="w-full min-h-[46px] bg-black/60 border border-white/10 p-3.5 rounded-xl text-white focus:border-[#E10600] focus:outline-none transition-colors text-sm"
                   />
                 </div>
 
@@ -1426,30 +1522,30 @@ export default function QuantumGate({ onEnter }: QuantumGateProps) {
                     placeholder="••••••••" 
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full bg-black/60 border border-white/10 p-3.5 rounded-xl text-white focus:border-[#E10600] focus:outline-none transition-colors text-sm"
+                    className="w-full min-h-[46px] bg-black/60 border border-white/10 p-3.5 rounded-xl text-white focus:border-[#E10600] focus:outline-none transition-colors text-sm"
                   />
                 </div>
 
                 {/* Demo sandbox link */}
-                <div className="flex justify-between items-center text-xs py-1">
+                <div className="flex justify-between items-center text-xs py-0.5">
                   <button 
                     type="button" 
                     onClick={enterDemoSandbox}
-                    className="text-amber-400 hover:text-amber-300 font-bold underline cursor-pointer hover:no-underline flex items-center gap-1"
+                    className="text-amber-400 hover:text-amber-300 font-semibold underline cursor-pointer hover:no-underline flex items-center gap-1 min-h-[36px]"
                   >
-                    ⚡ Accès Démo (Bac à sable sans compte)
+                    Découvrir la démo (bac à sable)
                   </button>
                 </div>
 
                 <button 
                   type="submit" 
                   disabled={loading}
-                  className="w-full bg-[#E10600] text-white py-3.5 rounded-xl font-black text-xs tracking-wider uppercase hover:bg-red-700 transition flex items-center justify-center gap-2 cursor-pointer"
+                  className="w-full min-h-[48px] bg-gradient-to-r from-[#E10600] to-[#c40500] text-white py-3.5 rounded-2xl font-black text-xs tracking-wider uppercase hover:from-[#f00800] hover:to-[#E10600] transition flex items-center justify-center gap-2 cursor-pointer shadow-[0_8px_24px_rgba(225,6,0,0.28)]"
                 >
                   {loading ? <Loader2 className="animate-spin text-white" size={16} /> : "VALIDER LA CONNEXION"}
                 </button>
 
-                <div className="flex justify-between text-xs pt-2">
+                <div className="flex justify-between items-center text-xs pt-1">
                   <button 
                     type="button" 
                     onClick={() => {
@@ -1457,11 +1553,11 @@ export default function QuantumGate({ onEnter }: QuantumGateProps) {
                       setOnboardActive(true);
                       setOnboardStep(1);
                     }} 
-                    className="text-[#E10600] font-bold hover:underline"
+                    className="min-h-[40px] text-[#E10600] font-bold hover:underline cursor-pointer"
                   >
-                    Créer un espace
+                    Créer un compte
                   </button>
-                  <button type="button" onClick={() => setIdentityOpen(false)} className="text-zinc-500 hover:text-white">
+                  <button type="button" onClick={() => setIdentityOpen(false)} className="min-h-[40px] text-zinc-400 hover:text-white cursor-pointer">
                     Annuler
                   </button>
                 </div>

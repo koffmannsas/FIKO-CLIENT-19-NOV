@@ -1,6 +1,8 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
+import fs from 'node:fs';
+import path from 'node:path';
 import { 
   toPaystackSubunits, 
   fromPaystackSubunits, 
@@ -595,4 +597,78 @@ describe('Suite 15: Fiko Deep Scan™ (Sécurité SSRF, Extraction HTML) & Learn
     assert.equal(audit.blockedCapabilities.some((b) => b.includes('Garantir un résultat')), true);
   });
 });
+
+function readPngDimensions(filePath: string): { width: number; height: number; colorType: number } {
+  const buf = fs.readFileSync(filePath);
+  const signature = buf.subarray(0, 8);
+  assert.deepEqual(
+    signature,
+    Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+    `Signature PNG invalide pour ${filePath}`
+  );
+  const width = buf.readUInt32BE(16);
+  const height = buf.readUInt32BE(20);
+  const colorType = buf.readUInt8(25);
+  return { width, height, colorType };
+}
+
+describe('Suite 16 — Official Brand Integration V1.1 (Logo, Symbole, Favicon & PWA)', () => {
+  const rootDir = process.cwd();
+
+  it('vérifie la présence et les dimensions exactes du logo officiel (2016×780 RGBA) et du symbole hexagonal', () => {
+    const officialLogoPath = path.join(rootDir, 'public/branding/fiko-connect-logo-official.png');
+    const symbolPath = path.join(rootDir, 'public/branding/fiko-connect-symbol-official.png');
+
+    assert.equal(fs.existsSync(officialLogoPath), true);
+    assert.equal(fs.existsSync(symbolPath), true);
+
+    const fullMeta = readPngDimensions(officialLogoPath);
+    assert.equal(fullMeta.width, 2016);
+    assert.equal(fullMeta.height, 780);
+    assert.equal(fullMeta.colorType, 6); // RGBA avec transparence
+
+    const symbolMeta = readPngDimensions(symbolPath);
+    assert.equal(symbolMeta.width, 512);
+    assert.equal(symbolMeta.height, 512);
+    assert.equal(symbolMeta.colorType, 6);
+  });
+
+  it('vérifie les favicons, apple-touch-icon et icônes PWA générées depuis le symbole officiel', () => {
+    const expectedSizes: Array<[string, number, number]> = [
+      ['public/favicon-32x32.png', 32, 32],
+      ['public/favicon.png', 64, 64],
+      ['public/apple-touch-icon.png', 180, 180],
+      ['public/pwa-192x192.png', 192, 192],
+      ['public/pwa-512x512.png', 512, 512],
+      ['public/pwa-maskable-512x512.png', 512, 512],
+    ];
+
+    for (const [relPath, w, h] of expectedSizes) {
+      const abs = path.join(rootDir, relPath);
+      assert.equal(fs.existsSync(abs), true, `Fichier manquant : ${relPath}`);
+      const dims = readPngDimensions(abs);
+      assert.equal(dims.width, w, `Largeur attendue ${w} pour ${relPath}`);
+      assert.equal(dims.height, h, `Hauteur attendue ${h} pour ${relPath}`);
+    }
+  });
+
+  it('vérifie le manifest PWA et les balises favicon/manifest de index.html', () => {
+    const manifestPath = path.join(rootDir, 'public/manifest.webmanifest');
+    const indexPath = path.join(rootDir, 'index.html');
+
+    const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf-8'));
+    assert.equal(manifest.name, 'Fiko Connect');
+    assert.equal(manifest.display, 'standalone');
+    assert.equal(manifest.background_color, '#050505');
+    assert.equal(Array.isArray(manifest.icons) && manifest.icons.length === 3, true);
+    assert.equal(manifest.icons.some((i: any) => i.purpose === 'maskable' && i.src === '/pwa-maskable-512x512.png'), true);
+
+    const html = fs.readFileSync(indexPath, 'utf-8');
+    assert.match(html, /href="\/favicon\.png"/);
+    assert.match(html, /href="\/apple-touch-icon\.png"/);
+    assert.match(html, /href="\/manifest\.webmanifest"/);
+    assert.match(html, /<title>Fiko Connect/);
+  });
+});
+
 

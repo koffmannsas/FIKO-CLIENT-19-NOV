@@ -39,12 +39,17 @@ import PaymentsModule from './components/Payments';
 import AnalyticsModule from './components/Analytics';
 import QuantumGate from './components/QuantumGate';
 import CurrencySwitcher from './components/CurrencySwitcher';
+import MobileHome from './components/MobileHome';
+import { MobileTopBar, MobileBottomNav, MobileMoreSheet } from './components/MobileShell';
+import FikoConnectLogo from './components/FikoConnectLogo';
 
 export default function App() {
   const [view, setView] = useState<'quantum' | 'dashboard'>('quantum');
   const [activeItem, setActiveItem] = useState('Dashboard');
   const [autoPilot, setAutoPilot] = useState(false);
   const [isDemoMode, setIsDemoMode] = useState(false);
+  const [mobileMoreOpen, setMobileMoreOpen] = useState(false);
+  const [mobileShowFullDashboard, setMobileShowFullDashboard] = useState(false);
   const [threads, setThreads] = useState<Thread[]>(INITIAL_THREADS);
   const unreadCount = threads.filter(t => t.unread).length;
   const [onboardingData, setOnboardingData] = useState<any>({
@@ -86,6 +91,7 @@ export default function App() {
     if (data) {
       setOnboardingData(data);
     }
+    setMobileShowFullDashboard(false);
     setView('dashboard');
   };
 
@@ -99,18 +105,30 @@ export default function App() {
     setView('quantum');
   };
 
+  const handleMobileNavigate = (itemName: string) => {
+    setActiveItem(itemName);
+    setMobileMoreOpen(false);
+    if (itemName === 'Dashboard') {
+      setMobileShowFullDashboard(false);
+    }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   if (view === 'quantum') {
     return <QuantumGate onEnter={handleEnterPlatform} />;
   }
 
   return (
-    <div className="flex bg-[#050505] text-white min-h-screen font-sans">
+    <div className="flex flex-col lg:flex-row bg-[#050505] text-white min-h-screen w-full overflow-x-hidden font-sans">
       
-      {/* SIDEBAR */}
-      <div className="w-64 bg-[#0a0a0a] border-r border-gray-900 p-6 flex flex-col fixed h-full z-10">
-        <h2 className="text-2xl font-[900] mb-8 text-white tracking-tighter">
-          FIKO<span className="text-[#E10600]">.</span>
-        </h2>
+      {/* MOBILE TOP BAR (< lg) */}
+      <MobileTopBar onGoHome={() => handleMobileNavigate('Dashboard')} />
+
+      {/* DESKTOP SIDEBAR (lg+ INTEGRAL PRESERVATION) */}
+      <aside className="hidden lg:flex w-64 bg-[#0a0a0a] border-r border-gray-900 p-6 flex-col fixed h-full z-10">
+        <div className="mb-7 pb-4 border-b border-zinc-900/70 flex items-center">
+          <FikoConnectLogo variant="full" size="md" surface="dark" />
+        </div>
         
         {/* Menu Items List */}
         <ul className="space-y-1.5 flex-1">
@@ -197,17 +215,17 @@ export default function App() {
           </button>
 
         </div>
-      </div>
+      </aside>
 
-      {/* MAIN CONTAINER */}
-      <div className="flex-1 ml-64 p-8 overflow-y-auto">
+      {/* MAIN CONTAINER (Full-width on mobile, ml-64 on lg+ desktop) */}
+      <main className="flex-1 w-full min-w-0 px-4 pt-3 pb-24 lg:ml-64 lg:p-8 overflow-y-auto">
         
-        {/* RESTRICTED DEMO WARNING BANNER */}
+        {/* RESTRICTED DEMO WARNING BANNER (Desktop full banner; compact on mobile non-home views) */}
         {isDemoMode && (
-          <div className="mb-6 p-4 rounded-2xl bg-amber-950/20 border border-amber-900/50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className={`${activeItem === 'Dashboard' && !mobileShowFullDashboard ? 'hidden lg:flex' : 'flex'} mb-4 lg:mb-6 p-3.5 lg:p-4 rounded-2xl bg-amber-950/20 border border-amber-900/50 flex-col sm:flex-row items-start sm:items-center justify-between gap-3 lg:gap-4`}>
             <div className="flex items-start gap-3">
               <div className="p-2 rounded-xl bg-amber-500/10 text-amber-500 border border-amber-500/20 shrink-0">
-                <AlertTriangle size={18} />
+                <AlertTriangle size={16} />
               </div>
               <div>
                 <p className="text-xs font-black text-amber-200 uppercase tracking-wider">
@@ -220,16 +238,40 @@ export default function App() {
             </div>
             <button 
               onClick={() => setView('quantum')}
-              className="bg-amber-500 hover:bg-amber-600 text-black font-extrabold text-[10px] uppercase tracking-wider px-4 py-2 rounded-xl shrink-0 transition"
+              className="bg-amber-500 hover:bg-amber-600 text-black font-extrabold text-[10px] uppercase tracking-wider px-4 py-2 rounded-xl shrink-0 transition cursor-pointer"
             >
               Déployer un espace réel OS
             </button>
           </div>
         )}
 
-        {/* HEADER SECTION */}
-        <div className="flex justify-between items-center mb-8">
-            <h1 className="text-3xl font-[900] tracking-tight">{activeItem}</h1>
+        {/* MOBILE SECTION TITLE STRIP (when browsing sub-modules on mobile) */}
+        {(activeItem !== 'Dashboard' || mobileShowFullDashboard) && (
+          <div className="lg:hidden flex items-center justify-between gap-3 mb-4 pb-2 border-b border-zinc-900">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <FikoConnectLogo variant="symbol" size="xs" surface="dark" />
+              <h1 className="text-xl font-[900] tracking-tight text-white truncate">
+                {activeItem}
+              </h1>
+            </div>
+            {activeItem === 'Dashboard' && mobileShowFullDashboard && (
+              <button
+                type="button"
+                onClick={() => setMobileShowFullDashboard(false)}
+                className="text-xs font-bold text-[#E10600] px-2.5 py-1.5 rounded-lg bg-zinc-900 border border-zinc-800 whitespace-nowrap shrink-0 cursor-pointer"
+              >
+                Vue mobile simple
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* DESKTOP HEADER SECTION (lg+ INTEGRAL PRESERVATION) */}
+        <div className="hidden lg:flex justify-between items-center mb-8">
+            <div className="flex items-center gap-3">
+              <FikoConnectLogo variant="symbol" size="sm" surface="dark" />
+              <h1 className="text-3xl font-[900] tracking-tight">{activeItem}</h1>
+            </div>
             
             <div className="flex items-center gap-4 flex-wrap">
                 <CurrencySwitcher />
@@ -266,12 +308,35 @@ export default function App() {
 
         {/* CONTROLLING SUB-MODULE EXECUTIONS */}
         {activeItem === 'Dashboard' && (
-          <Dashboard 
-            onboardingData={onboardingData} 
-            isDemoMode={isDemoMode}
-            onUpgrade={() => setView('quantum')} 
-            onOpenKnowledgeCenter={() => setActiveItem('Knowledge Center')}
-          />
+          <>
+            {/* Mobile-First Adaptive Home View (< lg) */}
+            {!mobileShowFullDashboard && (
+              <div className="lg:hidden">
+                <MobileHome
+                  onboardingData={onboardingData}
+                  isDemoMode={isDemoMode}
+                  autoPilot={autoPilot}
+                  unreadCount={unreadCount}
+                  onToggleAutoPilot={() => {
+                    if (!isDemoMode) setAutoPilot((p) => !p);
+                  }}
+                  onNavigate={handleMobileNavigate}
+                  onUpgrade={() => setView('quantum')}
+                  onExpandDesktopDashboard={() => setMobileShowFullDashboard(true)}
+                />
+              </div>
+            )}
+
+            {/* Integral Desktop Dashboard (always visible on lg+, or on mobile if explicitly expanded) */}
+            <div className={mobileShowFullDashboard ? 'block' : 'hidden lg:block'}>
+              <Dashboard 
+                onboardingData={onboardingData} 
+                isDemoMode={isDemoMode}
+                onUpgrade={() => setView('quantum')} 
+                onOpenKnowledgeCenter={() => setActiveItem('Knowledge Center')}
+              />
+            </div>
+          </>
         )}
         {activeItem === 'Knowledge Center' && (
           <KnowledgeCenter
@@ -291,28 +356,48 @@ export default function App() {
         {activeItem === 'Paiements' && <PaymentsModule />}
         {activeItem === 'Analytics' && <AnalyticsModule />}
         {activeItem === 'Settings' && (
-          <div className="p-6 bg-zinc-900/20 border border-white/5 rounded-3xl max-w-2xl">
+          <div className="p-5 sm:p-6 bg-zinc-900/20 border border-white/5 rounded-3xl max-w-2xl">
             <h3 className="text-lg font-black text-white mb-2">Paramètres de l'Infrastructure</h3>
             <p className="text-xs text-zinc-400 mb-4 font-medium leading-relaxed">
               Consultez vos variables d'intégration d'entreprise pour les passerelles Fiko OS.
             </p>
             <div className="space-y-3 font-mono text-xs">
-              <div className="p-3.5 bg-black/60 rounded-xl border border-white/5 flex justify-between items-center">
+              <div className="p-3.5 bg-black/60 rounded-xl border border-white/5 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-1">
                 <span className="text-zinc-500 font-bold uppercase">COMPANY_ID :</span>
-                <span className="text-white font-bold select-all">{isDemoMode ? 'sandbox_demo_reviewer_68' : 'fiko_prod_68469' }</span>
+                <span className="text-white font-bold select-all break-all">{isDemoMode ? 'sandbox_demo_reviewer_68' : (onboardingData?.companyId || 'fiko_prod_68469') }</span>
               </div>
-              <div className="p-3.5 bg-black/60 rounded-xl border border-white/5 flex justify-between items-center">
+              <div className="p-3.5 bg-black/60 rounded-xl border border-white/5 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-1">
                 <span className="text-zinc-500 font-bold uppercase">REGION :</span>
                 <span className="text-emerald-400 font-bold">Afrique de l'Ouest (Abidjan) 🇨🇮</span>
               </div>
-              <div className="p-3.5 bg-black/60 rounded-xl border border-white/5 flex justify-between items-center">
+              <div className="p-3.5 bg-black/60 rounded-xl border border-white/5 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-1">
                 <span className="text-zinc-500 font-bold uppercase">CAPABILITY_STATUS :</span>
-                <span className="text-emerald-400 font-bold">SERVER_SIDE_GEMINI_API_ACTIVE</span>
+                <span className="text-emerald-400 font-bold break-all">SERVER_SIDE_GEMINI_API_ACTIVE</span>
               </div>
             </div>
           </div>
         )}
-      </div>
+      </main>
+
+      {/* MOBILE BOTTOM NAVIGATION & SECONDARY SHEET (< lg) */}
+      <MobileBottomNav
+        activeItem={activeItem}
+        unreadCount={unreadCount}
+        moreOpen={mobileMoreOpen}
+        onSelectItem={handleMobileNavigate}
+        onToggleMore={() => setMobileMoreOpen((prev) => !prev)}
+      />
+
+      <MobileMoreSheet
+        open={mobileMoreOpen}
+        activeItem={activeItem}
+        isDemoMode={isDemoMode}
+        onboardingData={onboardingData}
+        onClose={() => setMobileMoreOpen(false)}
+        onSelectItem={handleMobileNavigate}
+        onUpgrade={() => setView('quantum')}
+        onLogout={handleLogout}
+      />
     </div>
   );
 }

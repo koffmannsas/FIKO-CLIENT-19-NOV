@@ -2,7 +2,11 @@ import { useState, useRef, useEffect } from 'react';
 import { Globe, ChevronDown, Check, ArrowLeftRight } from 'lucide-react';
 import { useCurrency, CURRENCIES, convertToXOF, formatCurrencyAmount, CurrencyCode } from '../lib/currency';
 
-export default function CurrencySwitcher() {
+interface CurrencySwitcherProps {
+  embedded?: boolean;
+}
+
+export default function CurrencySwitcher({ embedded = false }: CurrencySwitcherProps) {
   const { currency, currencyInfo, setCurrency, currencies, isBaseFcfa } = useCurrency();
   const [open, setOpen] = useState(false);
   const [calcAmount, setCalcAmount] = useState<string>('100000');
@@ -10,6 +14,7 @@ export default function CurrencySwitcher() {
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    if (embedded) return;
     const handleClickOutside = (e: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
         setOpen(false);
@@ -17,46 +22,27 @@ export default function CurrencySwitcher() {
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+  }, [embedded]);
 
   const numericCalcAmount = parseFloat(calcAmount) || 0;
   const baseXofEquivalent = convertToXOF(numericCalcAmount, calcSource);
 
-  return (
-    <div ref={containerRef} className="relative">
-      <button
-        type="button"
-        onClick={() => setOpen((prev) => !prev)}
-        className={`flex items-center gap-2 px-3 py-2 rounded-full border text-xs font-bold transition cursor-pointer ${
-          isBaseFcfa
-            ? 'bg-zinc-900/60 border-gray-800 text-zinc-200 hover:border-gray-700'
-            : 'bg-emerald-950/30 border-emerald-800/60 text-emerald-300 hover:border-emerald-700'
-        }`}
-        title="Changer la devise d'affichage du tableau de bord (Base : FCFA / XOF)"
-      >
-        <Globe size={14} className={isBaseFcfa ? 'text-[#25D366]' : 'text-emerald-400'} />
-        <span className="font-mono font-black">
-          {currencyInfo.flag} {currencyInfo.shortLabel}
+  const selectorContent = (
+    <>
+      <div className="flex items-center justify-between border-b border-zinc-900 pb-2.5">
+        <div>
+          <span className="text-[10px] font-mono font-black uppercase tracking-wider text-[#25D366] block">
+            MODE MULTI-DEVISE
+          </span>
+          <h4 className="text-xs font-black text-white">Devise d'affichage du Cockpit</h4>
+        </div>
+        <span className="text-[9px] font-mono bg-zinc-900 text-zinc-400 px-2 py-0.5 rounded border border-zinc-800">
+          Base : FCFA (XOF)
         </span>
-        <ChevronDown size={13} className={`text-zinc-400 transition-transform ${open ? 'rotate-180' : ''}`} />
-      </button>
+      </div>
 
-      {open && (
-        <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-[#0a0a0f] border border-zinc-800 rounded-2xl shadow-2xl p-4 z-50 space-y-4">
-          <div className="flex items-center justify-between border-b border-zinc-900 pb-2.5">
-            <div>
-              <span className="text-[10px] font-mono font-black uppercase tracking-wider text-[#25D366] block">
-                MODE MULTI-DEVISE
-              </span>
-              <h4 className="text-xs font-black text-white">Devise d'affichage du Cockpit</h4>
-            </div>
-            <span className="text-[9px] font-mono bg-zinc-900 text-zinc-400 px-2 py-0.5 rounded border border-zinc-800">
-              Base : FCFA (XOF)
-            </span>
-          </div>
-
-          {/* Currency list */}
-          <div className="grid grid-cols-1 gap-1.5 max-h-60 overflow-y-auto pr-1">
+      {/* Currency list */}
+      <div className="grid grid-cols-1 gap-1.5 max-h-60 overflow-y-auto pr-1">
             {currencies.map((c) => {
               const active = c.code === currency;
               return (
@@ -139,6 +125,65 @@ export default function CurrencySwitcher() {
                 ))}
             </div>
           </div>
+    </>
+  );
+
+  if (embedded) {
+    return (
+      <div className="space-y-2">
+        <button
+          type="button"
+          onClick={() => setOpen((prev) => !prev)}
+          className="w-full min-h-[56px] px-3.5 py-2.5 rounded-2xl border bg-black/60 border-zinc-900 hover:border-zinc-700 text-zinc-200 flex items-center justify-between gap-3 text-left transition cursor-pointer"
+        >
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-9 h-9 rounded-xl bg-zinc-900 flex items-center justify-center shrink-0">
+              <Globe size={17} className={isBaseFcfa ? 'text-[#25D366]' : 'text-emerald-400'} />
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs font-black text-white truncate">Devise d'affichage du Cockpit</p>
+              <p className="text-[11px] text-zinc-400 truncate">
+                {currencyInfo.flag} {currencyInfo.shortLabel} · Base : FCFA (XOF)
+              </p>
+            </div>
+          </div>
+          <ChevronDown
+            size={16}
+            className={`text-zinc-400 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`}
+          />
+        </button>
+
+        {open && (
+          <div className="bg-black/75 border border-zinc-800 rounded-2xl p-3.5 space-y-4">
+            {selectorContent}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div ref={containerRef} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((prev) => !prev)}
+        className={`flex items-center gap-2 px-3 py-2 rounded-full border text-xs font-bold transition cursor-pointer ${
+          isBaseFcfa
+            ? 'bg-zinc-900/60 border-gray-800 text-zinc-200 hover:border-gray-700'
+            : 'bg-emerald-950/30 border-emerald-800/60 text-emerald-300 hover:border-emerald-700'
+        }`}
+        title="Changer la devise d'affichage du tableau de bord (Base : FCFA / XOF)"
+      >
+        <Globe size={14} className={isBaseFcfa ? 'text-[#25D366]' : 'text-emerald-400'} />
+        <span className="font-mono font-black">
+          {currencyInfo.flag} {currencyInfo.shortLabel}
+        </span>
+        <ChevronDown size={13} className={`text-zinc-400 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+
+      {open && (
+        <div className="absolute right-0 mt-2 w-[min(21rem,calc(100vw-2rem))] sm:w-96 bg-[#0a0a0f] border border-zinc-800 rounded-2xl shadow-2xl p-4 z-50 space-y-4">
+          {selectorContent}
         </div>
       )}
     </div>

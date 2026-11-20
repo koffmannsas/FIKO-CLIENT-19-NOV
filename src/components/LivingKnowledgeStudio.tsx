@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { useCurrency } from '../lib/currency';
 import { LEARNING_STEPS } from '../lib/knowledgeEngine';
+import FikoConnectLogo from './FikoConnectLogo';
 import {
   BusinessIdentity,
   DeepScanPageInfo,
@@ -156,9 +157,7 @@ export default function LivingKnowledgeStudio({
       {/* TOP COCKPIT HEADER MATCHING DESIGN MOCKUP */}
       <div className="px-5 py-4 border-b border-zinc-900 bg-black/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="flex items-center gap-3.5">
-          <div className="w-10 h-10 rounded-xl bg-[#E10600] flex items-center justify-center text-white shrink-0 shadow-[0_0_20px_rgba(225,6,0,0.35)]">
-            <Brain size={21} />
-          </div>
+          <FikoConnectLogo variant="symbol" size="md" surface="dark" />
           <div>
             <h3 className="text-base md:text-lg font-black text-white tracking-tight uppercase">
               FIKO KNOWLEDGE CENTER

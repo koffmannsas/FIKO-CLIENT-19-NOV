@@ -383,8 +383,8 @@ function CampaignBuilder({ onComplete }: { onComplete: () => void }) {
     };
 
     return (
-        <div className="grid grid-cols-3 gap-8">
-            <div className="col-span-2 space-y-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
+            <div className="lg:col-span-2 space-y-6">
                 <div className="bg-[#0a0a0a] p-6 rounded-2xl border border-gray-800">
                     <h2 className="text-xl font-bold mb-6">Détails de la campagne</h2>
                     
