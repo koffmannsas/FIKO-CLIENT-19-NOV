@@ -26,6 +26,14 @@ import {
   streamDeepScanDocument,
   handleLearningLiveChat,
 } from "./server/deepScan";
+import {
+  getSubscriptionOverview,
+  createSubscriptionQuote,
+  checkoutSubscriptionChange,
+  cancelScheduledChange,
+  cancelSubscriptionAtPeriodEnd,
+  reconcileSubscriptionPayment,
+} from "./server/subscriptions";
 
 // Initialize Gemini AI (Lazy initialization)
 let aiClient: GoogleGenAI | null = null;
@@ -74,6 +82,14 @@ async function startServer() {
   app.post("/api/knowledge/deep-scan/stream", requireAuth as any, streamDeepScanUrl as any);
   app.post("/api/knowledge/deep-scan/document", requireAuth as any, streamDeepScanDocument as any);
   app.post("/api/knowledge/learning-chat", requireAuth as any, handleLearningLiveChat as any);
+
+  // --- FIKO NOS OFFRES & BILLING ENGINE V1.0 ---
+  app.get("/api/subscriptions/overview", requireAuth as any, getSubscriptionOverview as any);
+  app.post("/api/subscriptions/quote", requireAuth as any, createSubscriptionQuote as any);
+  app.post("/api/subscriptions/checkout", requireAuth as any, checkoutSubscriptionChange as any);
+  app.post("/api/subscriptions/downgrade/cancel", requireAuth as any, cancelScheduledChange as any);
+  app.post("/api/subscriptions/cancel", requireAuth as any, cancelSubscriptionAtPeriodEnd as any);
+  app.post("/api/subscriptions/reconcile/:reference", requireAuth as any, reconcileSubscriptionPayment as any);
 
   // --- AI CAMPAIGN ASSISTANT ROUTES ---
   app.post("/api/campaigns/generate", async (req, res) => {

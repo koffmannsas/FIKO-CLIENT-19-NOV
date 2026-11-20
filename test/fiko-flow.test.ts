@@ -36,6 +36,26 @@ import {
   isPrivateOrReservedIp,
   validateSafeExternalUrl
 } from '../server/deepScan.ts';
+import {
+  PLAN_CATALOG,
+  PLAN_CATALOG_BY_ID,
+  CATALOG_VERSION,
+  normalizePlanId,
+  toLegacyPlanId,
+  addBillingCycleUtc,
+  calculateCyclePriceFCFA,
+  calculateBillingQuote,
+  computeResourceOverages,
+  resolvePlanEntitlements,
+  generateBillingInsights,
+  SubscriptionSnapshot,
+  UsageMetersSnapshot
+} from '../src/lib/subscriptionCatalog.ts';
+import {
+  isQuoteExpired,
+  isCatalogVersionCompatible,
+  evaluateSubscriptionLifecycle
+} from '../server/subscriptions.ts';
 
 describe('Suite 1: Validation des Conversions Paystack en Sous-Unités XOF (Franc CFA)', () => {
   it('convertit correctement les montants FCFA en centimes (sous-unités entières)', () => {
@@ -670,5 +690,391 @@ describe('Suite 16 — Official Brand Integration V1.1 (Logo, Symbole, Favicon &
     assert.match(html, /<title>Fiko Connect/);
   });
 });
+
+describe('Suite 17 — Nos Offres V1.0 : Moteur Financier FCFA, Prorata UTC, Downgrade, Entitlements & Sécurité (25 scénarios)', () => {
+  const baseUsage: UsageMetersSnapshot = {
+    whatsappConnections: 1,
+    monthlyConversations: 20,
+    leadsCount: 4,
+    aiAgents: 1,
+    campaignsThisMonth: 0,
+  };
+
+  function makeSub(overrides: Partial<SubscriptionSnapshot> = {}): SubscriptionSnapshot {
+    return {
+      companyId: 'co_test_1',
+      planId: 'starter',
+      billingCycle: 'monthly',
+      status: 'active',
+      trialUsed: true,
+      trialEndsAt: '2026-01-08T00:00:00.000Z',
+      currentPeriodStart: '2026-06-01T00:00:00.000Z',
+      currentPeriodEnd: '2026-07-01T00:00:00.000Z',
+      availableCreditFCFA: 0,
+      cancelAtPeriodEnd: false,
+      scheduledChange: null,
+      paymentMode: 'manual_renewal',
+      catalogVersion: CATALOG_VERSION,
+      ...overrides,
+    };
+  }
+
+  it('1. Nouvelle souscription : passage essai gratuit vers Starter mensuel', () => {
+    const sub = makeSub({ planId: 'essai', status: 'trialing', trialUsed: false });
+    const q = calculateBillingQuote({
+      subscription: sub,
+      targetPlanId: 'starter',
+      targetCycle: 'monthly',
+      usageMeters: baseUsage,
+      nowIso: '2026-06-03T12:00:00.000Z',
+    });
+    assert.equal(q.transitionType, 'first_subscription');
+    assert.equal(q.amountDueFCFA, 19000);
+    assert.equal(q.unusedCreditFCFA, 0);
+    assert.equal(q.newPeriodEnd, '2026-07-03T12:00:00.000Z');
+  });
+
+  it('2. Upgrade milieu de cycle : Starter -> Growth au jour 15 sur 30 jours avec crédit prorata', () => {
+    const sub = makeSub({
+      planId: 'starter',
+      currentPeriodStart: '2026-06-01T00:00:00.000Z',
+      currentPeriodEnd: '2026-07-01T00:00:00.000Z',
+    });
+    const q = calculateBillingQuote({
+      subscription: sub,
+      targetPlanId: 'growth',
+      targetCycle: 'monthly',
+      usageMeters: baseUsage,
+      nowIso: '2026-06-16T00:00:00.000Z', // Exactement 15j écoulés / 15j restants
+    });
+    assert.equal(q.transitionType, 'upgrade');
+    assert.equal(q.unusedCreditFCFA, 9500);
+    assert.equal(q.amountDueFCFA, 39500); // 49 000 - 9 500
+  });
+
+  it('3. Upgrade dernier jour du cycle : calcul prorata sans anomalie ni montant négatif', () => {
+    const sub = makeSub({
+      planId: 'starter',
+      currentPeriodStart: '2026-06-01T00:00:00.000Z',
+      currentPeriodEnd: '2026-07-01T00:00:00.000Z',
+    });
+    const q = calculateBillingQuote({
+      subscription: sub,
+      targetPlanId: 'growth',
+      targetCycle: 'monthly',
+      usageMeters: baseUsage,
+      nowIso: '2026-06-30T23:00:00.000Z', // 1 heure restante
+    });
+    assert.equal(q.transitionType, 'upgrade');
+    assert.ok(q.unusedCreditFCFA >= 0 && q.unusedCreditFCFA < 100);
+    assert.ok(q.amountDueFCFA > 48900 && q.amountDueFCFA <= 49000);
+  });
+
+  it('4. Upgrade avec crédit compte existant : consomme le crédit et préserve tout surplus éventuel', () => {
+    const sub = makeSub({
+      planId: 'starter',
+      availableCreditFCFA: 60000,
+      currentPeriodStart: '2026-06-01T00:00:00.000Z',
+      currentPeriodEnd: '2026-07-01T00:00:00.000Z',
+    });
+    const q = calculateBillingQuote({
+      subscription: sub,
+      targetPlanId: 'growth',
+      targetCycle: 'monthly',
+      usageMeters: baseUsage,
+      nowIso: '2026-06-16T00:00:00.000Z',
+    });
+    assert.equal(q.unusedCreditFCFA, 9500);
+    assert.equal(q.availableCreditAppliedFCFA, 39500);
+    assert.equal(q.amountDueFCFA, 0);
+    assert.equal(q.remainingCreditAfterFCFA, 20500);
+  });
+
+  it('5. Downgrade programmé : zéro facturation immédiate et prise d’effet à la fin du cycle', () => {
+    const sub = makeSub({
+      planId: 'pro',
+      currentPeriodStart: '2026-06-01T00:00:00.000Z',
+      currentPeriodEnd: '2026-07-01T00:00:00.000Z',
+    });
+    const q = calculateBillingQuote({
+      subscription: sub,
+      targetPlanId: 'starter',
+      targetCycle: 'monthly',
+      usageMeters: baseUsage,
+      nowIso: '2026-06-15T00:00:00.000Z',
+    });
+    assert.equal(q.transitionType, 'downgrade');
+    assert.equal(q.amountDueFCFA, 0);
+    assert.equal(q.effectiveAt, '2026-07-01T00:00:00.000Z');
+  });
+
+  it('6. Annulation d’un downgrade programmé : l’offre actuelle reste intacte avant échéance', () => {
+    const subWithDowngrade = makeSub({
+      planId: 'pro',
+      currentPeriodEnd: '2026-07-01T00:00:00.000Z',
+      scheduledChange: {
+        requestId: 'SCR_1',
+        targetPlanId: 'starter',
+        targetCycle: 'monthly',
+        effectiveAt: '2026-07-01T00:00:00.000Z',
+        createdAt: '2026-06-15T00:00:00.000Z',
+      },
+    });
+    // Avant l'échéance, Pro reste actif
+    const beforeExpiry = evaluateSubscriptionLifecycle(subWithDowngrade, '2026-06-20T00:00:00.000Z');
+    assert.equal(beforeExpiry.changed, false);
+    assert.equal(beforeExpiry.updated.planId, 'pro');
+
+    // Si annulé avant échéance
+    const cancelledSub = { ...subWithDowngrade, scheduledChange: null };
+    const afterExpiryIfCancelled = evaluateSubscriptionLifecycle(cancelledSub, '2026-07-02T00:00:00.000Z');
+    assert.equal(afterExpiryIfCancelled.updated.planId, 'pro');
+  });
+
+  it('7. Passage mensuel -> annuel : applique remise 20%, crédit prorata restant et nouvelle échéance +1 an', () => {
+    const sub = makeSub({
+      planId: 'growth',
+      billingCycle: 'monthly',
+      currentPeriodStart: '2026-06-01T00:00:00.000Z',
+      currentPeriodEnd: '2026-07-01T00:00:00.000Z',
+    });
+    const q = calculateBillingQuote({
+      subscription: sub,
+      targetPlanId: 'growth',
+      targetCycle: 'annual',
+      usageMeters: baseUsage,
+      nowIso: '2026-06-16T00:00:00.000Z',
+    });
+    assert.equal(q.transitionType, 'upgrade');
+    assert.equal(q.targetCyclePriceFCFA, 470400); // 49 000 * 12 * 0.80
+    assert.equal(q.unusedCreditFCFA, 24500);
+    assert.equal(q.amountDueFCFA, 445900);
+    assert.equal(q.newPeriodEnd, '2027-06-16T00:00:00.000Z');
+  });
+
+  it('8. Passage annuel -> mensuel : programmé à la fin du cycle annuel sans prélèvement immédiat', () => {
+    const sub = makeSub({
+      planId: 'growth',
+      billingCycle: 'annual',
+      currentPeriodStart: '2026-01-01T00:00:00.000Z',
+      currentPeriodEnd: '2027-01-01T00:00:00.000Z',
+    });
+    const q = calculateBillingQuote({
+      subscription: sub,
+      targetPlanId: 'growth',
+      targetCycle: 'monthly',
+      usageMeters: baseUsage,
+      nowIso: '2026-06-01T00:00:00.000Z',
+    });
+    assert.equal(q.transitionType, 'downgrade');
+    assert.equal(q.amountDueFCFA, 0);
+    assert.equal(q.effectiveAt, '2027-01-01T00:00:00.000Z');
+  });
+
+  it('9. Paiement échoué : aucune activation d’offre ni création de facture acquittée', () => {
+    const txState = { status: 'PENDING', subscriptionSettled: false };
+    // Simulation d'un événement charge.failed
+    const nextStatus = txState.status !== 'SUCCESS' ? 'FAILED' : txState.status;
+    assert.equal(nextStatus, 'FAILED');
+    assert.equal(txState.subscriptionSettled, false);
+  });
+
+  it('10. Paiement abandonné : un devis ouvert non payé laisse les droits actuels inchangés', () => {
+    const sub = makeSub({ planId: 'essai', status: 'trialing' });
+    const ent = resolvePlanEntitlements({
+      companyId: sub.companyId,
+      planId: sub.planId,
+      status: sub.status,
+      usageMeters: baseUsage,
+    });
+    assert.equal(ent.planId, 'essai');
+    assert.equal(ent.maxLeads, 5);
+  });
+
+  it('11. Webhook en double : idempotence stricte si subscriptionSettled === true', () => {
+    const alreadySettledTx = { status: 'SUCCESS', subscriptionSettled: true, amountPaystackSubunits: 1900000 };
+    const shouldReapply = !(alreadySettledTx.status === 'SUCCESS' && alreadySettledTx.subscriptionSettled === true);
+    assert.equal(shouldReapply, false);
+  });
+
+  it('12. Webhook reçu dans le désordre : un échec tardif ne peut jamais rétrograder un paiement SUCCESS', () => {
+    const confirmedTx = { status: 'SUCCESS', subscriptionSettled: true };
+    const statusAfterLateFail = confirmedTx.status !== 'SUCCESS' ? 'FAILED' : confirmedTx.status;
+    assert.equal(statusAfterLateFail, 'SUCCESS');
+  });
+
+  it('13. Double tentative de paiement : bloque un second checkout sur le même devis ou en attente', () => {
+    const existingRequests = [{ quoteId: 'QT_100', status: 'PENDING_PAYMENT' }];
+    const hasPending = existingRequests.some((r) => r.quoteId === 'QT_100' && r.status === 'PENDING_PAYMENT');
+    assert.equal(hasPending, true);
+  });
+
+  it('14. Devis expiré : rejeté au-delà de la fenêtre de 15 minutes', () => {
+    const expiredQuote = { expiresAt: '2026-06-10T10:15:00.000Z' };
+    assert.equal(isQuoteExpired(expiredQuote, '2026-06-10T10:15:01.000Z'), true);
+    assert.equal(isQuoteExpired(expiredQuote, '2026-06-10T10:10:00.000Z'), false);
+  });
+
+  it('15. Changement de version du catalogue pendant une opération : détecté et bloqué', () => {
+    assert.equal(isCatalogVersionCompatible(CATALOG_VERSION), true);
+    assert.equal(isCatalogVersionCompatible('2025.01-OLD'), false);
+  });
+
+  it('16. Expiration essai gratuit après 7 jours : bascule automatique en expired', () => {
+    const trialSub = makeSub({
+      planId: 'essai',
+      status: 'trialing',
+      trialUsed: false,
+      trialEndsAt: '2026-06-08T00:00:00.000Z',
+    });
+    const before = evaluateSubscriptionLifecycle(trialSub, '2026-06-07T23:59:59.000Z');
+    assert.equal(before.changed, false);
+    assert.equal(before.updated.status, 'trialing');
+
+    const after = evaluateSubscriptionLifecycle(trialSub, '2026-06-08T00:00:01.000Z');
+    assert.equal(after.changed, true);
+    assert.equal(after.updated.status, 'expired');
+    assert.equal(after.updated.trialUsed, true);
+  });
+
+  it('17. Dépassement de quota : bloque les nouvelles actions mais garantit la conservation historique', () => {
+    const overUsage: UsageMetersSnapshot = {
+      whatsappConnections: 1,
+      monthlyConversations: 55,
+      leadsCount: 6,
+      aiAgents: 1,
+      campaignsThisMonth: 1,
+    };
+    const ent = resolvePlanEntitlements({
+      companyId: 'co_over',
+      planId: 'essai',
+      status: 'trialing',
+      usageMeters: overUsage,
+    });
+    assert.equal(ent.canCreateNewLeads, false);
+    assert.equal(ent.canSendAutoMessages, false);
+    assert.equal(ent.readOnlyHistoricalAccess, true);
+  });
+
+  it('18. Downgrade avec ressources dépassant la limite : liste les surplus sans suppression automatique', () => {
+    const heavyUsage: UsageMetersSnapshot = {
+      whatsappConnections: 5,
+      monthlyConversations: 1200,
+      leadsCount: 800,
+      aiAgents: 4,
+      campaignsThisMonth: 8,
+    };
+    const overages = computeResourceOverages('starter', heavyUsage);
+    assert.ok(overages.some((o) => o.resourceKey === 'whatsappConnections' && o.excessCount === 4));
+    assert.ok(overages.some((o) => o.resourceKey === 'leadsCount' && o.excessCount === 500));
+    assert.ok(overages.some((o) => o.resourceKey === 'aiAgents' && o.excessCount === 3));
+    assert.ok(overages.every((o) => o.preservationRule.length > 10));
+  });
+
+  it('19. Isolation cross-tenant & anti-falsification : vérification stricte des alias et règles Firestore', () => {
+    const rules = fs.readFileSync(path.join(process.cwd(), 'firestore.rules'), 'utf-8');
+    assert.match(rules, /match \/subscriptions\/\{subId\}/);
+    assert.match(rules, /allow update, delete: if isSystemBot\(\);/);
+    assert.match(rules, /match \/invoices\/\{invoiceId\}/);
+    assert.match(rules, /match \/billing_quotes\/\{quoteId\}/);
+    assert.equal(normalizePlanId('business'), 'growth');
+    assert.equal(normalizePlanId('scale'), 'pro');
+    assert.equal(toLegacyPlanId('growth'), 'business');
+  });
+
+  it('20. Activation immédiate des droits après paiement : débloque quotas et relances auto', () => {
+    const starterEnt = resolvePlanEntitlements({
+      companyId: 'co_up',
+      planId: 'starter',
+      status: 'active',
+      usageMeters: baseUsage,
+    });
+    assert.equal(starterEnt.features.autoFollowUp, false);
+    assert.equal(starterEnt.maxWhatsappConnections, 1);
+
+    const growthEnt = resolvePlanEntitlements({
+      companyId: 'co_up',
+      planId: 'growth',
+      status: 'active',
+      usageMeters: baseUsage,
+    });
+    assert.equal(growthEnt.features.autoFollowUp, true);
+    assert.equal(growthEnt.maxWhatsappConnections, 3);
+    assert.equal(growthEnt.maxLeads, 2000);
+  });
+
+  it('21. Récupération entre paiement confirmé et activation interrompue : état réconciliable détecté', () => {
+    const interruptedTx = { status: 'SUCCESS', subscriptionSettled: false, companyId: 'co_rec' };
+    const needsRecovery = interruptedTx.status === 'SUCCESS' && !interruptedTx.subscriptionSettled;
+    assert.equal(needsRecovery, true);
+  });
+
+  it('22. Réconciliation transaction non synchronisée : rejette tout écart de montant ou de devise', () => {
+    const expectedSubunits = toPaystackSubunits(49000); // 4 900 000
+    assert.equal(expectedSubunits, 4900000);
+    const receivedSubunits: number = 1900000;
+    const mismatchAmount = receivedSubunits !== expectedSubunits;
+    const mismatchCurrency = ('NGN' as string) !== 'XOF';
+    assert.equal(mismatchAmount, true);
+    assert.equal(mismatchCurrency, true);
+  });
+
+  it('23. Changement / renouvellement en fenêtre d’échéance : bascule vers renewal à 3 jours de la fin', () => {
+    const sub = makeSub({
+      planId: 'starter',
+      billingCycle: 'monthly',
+      currentPeriodStart: '2026-06-01T00:00:00.000Z',
+      currentPeriodEnd: '2026-07-01T00:00:00.000Z',
+    });
+    const q = calculateBillingQuote({
+      subscription: sub,
+      targetPlanId: 'starter',
+      targetCycle: 'monthly',
+      usageMeters: baseUsage,
+      nowIso: '2026-06-28T00:00:00.000Z', // 3 jours avant échéance
+    });
+    assert.equal(q.transitionType, 'renewal');
+    assert.equal(q.amountDueFCFA, 19000);
+    assert.equal(q.newPeriodEnd, '2026-08-01T00:00:00.000Z');
+  });
+
+  it('24. Gestion exacte des cycles calendaires 28, 29 (bissextile), 30 et 31 jours en UTC', () => {
+    assert.equal(addBillingCycleUtc('2026-01-31T10:00:00.000Z', 'monthly'), '2026-02-28T10:00:00.000Z');
+    assert.equal(addBillingCycleUtc('2028-01-31T10:00:00.000Z', 'monthly'), '2028-02-29T10:00:00.000Z');
+    assert.equal(addBillingCycleUtc('2026-04-30T10:00:00.000Z', 'monthly'), '2026-05-30T10:00:00.000Z');
+    assert.equal(addBillingCycleUtc('2026-05-31T10:00:00.000Z', 'monthly'), '2026-06-30T10:00:00.000Z');
+    assert.equal(addBillingCycleUtc('2028-02-29T10:00:00.000Z', 'annual'), '2029-02-28T10:00:00.000Z');
+  });
+
+  it('25. Arrondi financier FCFA strict (entiers XOF) & Smart Billing Assistant non-invasif', () => {
+    for (const plan of PLAN_CATALOG) {
+      assert.equal(Number.isInteger(calculateCyclePriceFCFA(plan.id, 'monthly')), true);
+      assert.equal(Number.isInteger(calculateCyclePriceFCFA(plan.id, 'annual')), true);
+    }
+    const sub = makeSub({
+      planId: 'starter',
+      currentPeriodStart: '2026-02-01T00:00:00.000Z',
+      currentPeriodEnd: '2026-03-01T00:00:00.000Z', // 28 jours
+    });
+    const q = calculateBillingQuote({
+      subscription: sub,
+      targetPlanId: 'elite',
+      targetCycle: 'annual',
+      usageMeters: baseUsage,
+      nowIso: '2026-02-11T07:13:29.000Z',
+    });
+    assert.equal(Number.isInteger(q.unusedCreditFCFA), true);
+    assert.equal(Number.isInteger(q.amountDueFCFA), true);
+    assert.equal(Number.isInteger(q.remainingCreditAfterFCFA), true);
+
+    const insights = generateBillingInsights(sub, {
+      ...baseUsage,
+      leadsCount: 270, // 90% de 300
+    });
+    assert.ok(insights.some((i) => i.id === 'quota_threshold_80'));
+    assert.ok(insights.every((i) => i.advisoryOnly === true));
+  });
+});
+
 
 

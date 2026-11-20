@@ -11,6 +11,7 @@ import {
   PaystackTransaction
 } from "../src/lib/paystack";
 import { verifyPaystackWebhookSignature } from "./webhook-verify";
+import { applyPaidSubscriptionSettlement } from "./subscriptions";
 
 /**
  * Returns configuration status of Paystack gateway without exposing secret key
@@ -207,10 +208,21 @@ export async function handlePaystackWebhook(req: AuthenticatedRequest, res: Resp
       return res.sendStatus(200);
     }
 
-    const txData = txSnap.data() as PaystackTransaction;
+    const txData = txSnap.data() as any;
 
     // 2. Idempotency Check: Avoid double-counting!
     if (txData.status === "SUCCESS") {
+      if ((txData.purpose === "subscription" || data.metadata?.purpose === "subscription") && !txData.subscriptionSettled) {
+        await applyPaidSubscriptionSettlement({
+          reference,
+          paidAmountSubunits,
+          currency,
+          paystackId: data.id,
+          channel: data.channel,
+          paidAt: data.paid_at,
+          gatewayResponse: data.gateway_response,
+        });
+      }
       console.log(`[Paystack Webhook] Reference ${reference} already confirmed. Acknowledging.`);
       return res.sendStatus(200);
     }
@@ -225,7 +237,21 @@ export async function handlePaystackWebhook(req: AuthenticatedRequest, res: Resp
       return res.sendStatus(200);
     }
 
-    // 4. Update Transaction Record to SUCCESS
+    // 4a. Subscription settlement path (atomic entitlements + invoice + ledger)
+    if (txData.purpose === "subscription" || data.metadata?.purpose === "subscription") {
+      await applyPaidSubscriptionSettlement({
+        reference,
+        paidAmountSubunits,
+        currency,
+        paystackId: data.id,
+        channel: data.channel,
+        paidAt: data.paid_at,
+        gatewayResponse: data.gateway_response,
+      });
+      return res.sendStatus(200);
+    }
+
+    // 4b. Commercial Lead Payment path — Update Transaction Record to SUCCESS
     const nowIso = new Date().toISOString();
     await updateDoc(txRef, {
       status: "SUCCESS",
@@ -273,6 +299,21 @@ export async function handlePaystackWebhook(req: AuthenticatedRequest, res: Resp
         });
       } catch (msgErr: any) {
         console.warn("[Paystack Webhook] Failed to record payment receipt message:", msgErr.message);
+      }
+    }
+  } else if (event === "charge.failed" && data?.reference) {
+    const db = await getServerDb();
+    const txRef = doc(db, "transactions", String(data.reference));
+    const txSnap = await getDoc(txRef);
+    if (txSnap.exists()) {
+      const txData = txSnap.data() as any;
+      // Out-of-order protection: never downgrade an already verified SUCCESS transaction!
+      if (txData.status !== "SUCCESS") {
+        await updateDoc(txRef, {
+          status: "FAILED",
+          gatewayResponse: data.gateway_response || "Failed",
+          updatedAt: new Date().toISOString()
+        });
       }
     }
   }
@@ -323,9 +364,19 @@ export async function verifyPaystackPayment(req: AuthenticatedRequest, res: Resp
     const txSnap = await getDoc(txRef);
 
     if (txSnap.exists()) {
-      const txData = txSnap.data() as PaystackTransaction;
-      if (isSuccess && txData.status !== "SUCCESS") {
-        // Reconcile and update
+      const txData = txSnap.data() as any;
+      if (isSuccess && (txData.purpose === "subscription" || data.metadata?.purpose === "subscription")) {
+        await applyPaidSubscriptionSettlement({
+          reference,
+          paidAmountSubunits,
+          currency,
+          paystackId: data.id,
+          channel: data.channel,
+          paidAt: data.paid_at,
+          gatewayResponse: data.gateway_response,
+        });
+      } else if (isSuccess && txData.status !== "SUCCESS") {
+        // Reconcile and update commercial transaction
         const nowIso = new Date().toISOString();
         await updateDoc(txRef, {
           status: "SUCCESS",

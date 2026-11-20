@@ -2,17 +2,42 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // Global safety net: default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
     function isSignedIn() {
       return request.auth != null;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
     }
 
     function getUserCompanyId() {
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.companyId;
     }
 
+    function isSystemBot() {
+      return isSignedIn() && request.auth.token.email == 'fiko-system-bot@fiko.internal';
+    }
+
+    function isCompanyMember(companyId) {
+      return isSignedIn() && (isSystemBot() || getUserCompanyId() == companyId);
+    }
+
     // --- USERS COLLECTION ---
     match /users/{userId} {
-      allow read, write: if isSignedIn() && request.auth.uid == userId;
+      allow read, write: if isSystemBot() || (isSignedIn() && request.auth.uid == userId);
     }
 
     // --- COMPANIES COLLECTION ---
@@ -20,11 +45,75 @@ service cloud.firestore {
       allow read, write: if isSignedIn();
     }
 
-    // --- SUBSCRIPTIONS & AGENTS & FIKO MEMORY ---
+    // --- SUBSCRIPTIONS (Anti-Tamper Server Authority) ---
     match /subscriptions/{subId} {
-      allow read, write: if isSignedIn();
+      allow get: if isSystemBot() || (
+        isSignedIn() && isValidId(subId) && (
+          subId == getUserCompanyId() ||
+          existing().companyId == getUserCompanyId()
+        )
+      );
+      allow list: if isSystemBot() || (
+        isSignedIn() && (existing().ownerUid == request.auth.uid || existing().companyId == getUserCompanyId())
+      );
+      // Client can ONLY initialize a free 7-day trial on its own newly created company;
+      // Paid upgrades, credits, cycles, and statuses are written strictly server-side.
+      allow create: if isSystemBot() || (
+        isSignedIn() &&
+        isValidId(subId) &&
+        incoming().companyId == subId &&
+        incoming().plan in ['free', 'essai'] &&
+        incoming().status in ['active', 'trialing'] &&
+        exists(/databases/$(database)/documents/companies/$(subId)) &&
+        get(/databases/$(database)/documents/companies/$(subId)).data.ownerId == request.auth.uid
+      );
+      allow update, delete: if isSystemBot();
     }
 
+    // --- BILLING QUOTES, REQUESTS, INVOICES, LEDGER, ENTITLEMENTS, USAGE METERS, AUDIT ---
+    match /billing_quotes/{quoteId} {
+      allow get: if isSystemBot() || (isSignedIn() && isValidId(quoteId) && (existing().ownerUid == request.auth.uid || existing().companyId == getUserCompanyId()));
+      allow list: if isSystemBot() || (isSignedIn() && existing().ownerUid == request.auth.uid);
+      allow create, update, delete: if isSystemBot();
+    }
+
+    match /subscription_change_requests/{requestId} {
+      allow get: if isSystemBot() || (isSignedIn() && isValidId(requestId) && (existing().ownerUid == request.auth.uid || existing().companyId == getUserCompanyId()));
+      allow list: if isSystemBot() || (isSignedIn() && existing().ownerUid == request.auth.uid);
+      allow create, update, delete: if isSystemBot();
+    }
+
+    match /invoices/{invoiceId} {
+      allow get: if isSystemBot() || (isSignedIn() && isValidId(invoiceId) && (existing().ownerUid == request.auth.uid || existing().companyId == getUserCompanyId()));
+      allow list: if isSystemBot() || (isSignedIn() && existing().ownerUid == request.auth.uid);
+      allow create, update, delete: if isSystemBot();
+    }
+
+    match /billing_ledger/{entryId} {
+      allow get: if isSystemBot() || (isSignedIn() && isValidId(entryId) && (existing().ownerUid == request.auth.uid || existing().companyId == getUserCompanyId()));
+      allow list: if isSystemBot() || (isSignedIn() && existing().ownerUid == request.auth.uid);
+      allow create, update, delete: if isSystemBot();
+    }
+
+    match /entitlements/{companyId} {
+      allow get: if isSystemBot() || isCompanyMember(companyId);
+      allow list: if isSystemBot() || (isSignedIn() && existing().ownerUid == request.auth.uid);
+      allow create, update, delete: if isSystemBot();
+    }
+
+    match /usage_meters/{companyId} {
+      allow get: if isSystemBot() || isCompanyMember(companyId);
+      allow list: if isSystemBot() || (isSignedIn() && existing().ownerUid == request.auth.uid);
+      allow create, update, delete: if isSystemBot();
+    }
+
+    match /billing_audit_events/{eventId} {
+      allow get: if isSystemBot() || (isSignedIn() && isValidId(eventId) && (existing().ownerUid == request.auth.uid || existing().companyId == getUserCompanyId()));
+      allow list: if isSystemBot() || (isSignedIn() && existing().ownerUid == request.auth.uid);
+      allow create, update, delete: if isSystemBot();
+    }
+
+    // --- AGENTS & FIKO MEMORY ---
     match /fiko_memory/{memId} {
       allow read, write: if isSignedIn();
     }
@@ -36,11 +125,10 @@ service cloud.firestore {
     // --- LEADS COLLECTION ---
     match /leads/{leadId} {
       allow read: if isSignedIn();
-      // On create, allow if signed in
       allow create: if isSignedIn();
       // On update: client cannot forge or arbitrarily switch status to 'Payé' without server verification
       allow update: if isSignedIn() && (
-        request.resource.data.status != 'Payé' || 
+        request.resource.data.status != 'Payé' ||
         resource.data.status == 'Payé' ||
         (request.resource.data.paidTransactionReference != null)
       );
@@ -52,10 +140,10 @@ service cloud.firestore {
       allow read: if isSignedIn();
       // Client cannot forge successful status; status updates to SUCCESS are executed server-side
       allow create: if isSignedIn() && request.resource.data.status == 'PENDING';
-      allow update: if isSignedIn() && (
+      allow update: if isSystemBot() || (isSignedIn() && (
         request.resource.data.status == resource.data.status ||
         resource.data.status != 'SUCCESS'
-      );
+      ));
       allow delete: if false;
     }
 

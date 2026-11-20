@@ -185,6 +185,128 @@
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["id", "companyId", "versionNumber", "label", "createdAt"]
+    },
+    "BillingQuote": {
+      "title": "BillingQuote",
+      "description": "Server-generated, versioned and time-bound subscription quote with exact FCFA prorata.",
+      "type": "object",
+      "properties": {
+        "quoteId": { "type": "string" },
+        "companyId": { "type": "string" },
+        "ownerUid": { "type": "string" },
+        "fromPlanId": { "type": "string", "enum": ["essai", "starter", "growth", "pro", "elite"] },
+        "toPlanId": { "type": "string", "enum": ["essai", "starter", "growth", "pro", "elite"] },
+        "toCycle": { "type": "string", "enum": ["monthly", "annual"] },
+        "transitionType": { "type": "string" },
+        "catalogVersion": { "type": "string" },
+        "amountDueFCFA": { "type": "integer" },
+        "status": { "type": "string", "enum": ["OPEN", "CONSUMED", "EXPIRED", "CANCELLED"] },
+        "expiresAt": { "type": "string", "format": "date-time" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["quoteId", "companyId", "ownerUid", "toPlanId", "toCycle", "amountDueFCFA", "status", "expiresAt"]
+    },
+    "SubscriptionChangeRequest": {
+      "title": "SubscriptionChangeRequest",
+      "description": "Tracks upgrades, scheduled downgrades, and pending payment subscription transitions.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "companyId": { "type": "string" },
+        "ownerUid": { "type": "string" },
+        "quoteId": { "type": "string" },
+        "type": { "type": "string" },
+        "fromPlanId": { "type": "string" },
+        "toPlanId": { "type": "string" },
+        "amountDueFCFA": { "type": "integer" },
+        "status": { "type": "string", "enum": ["PENDING_PAYMENT", "SCHEDULED", "COMPLETED", "CANCELLED", "FAILED"] },
+        "transactionReference": { "type": "string" },
+        "effectiveAt": { "type": "string", "format": "date-time" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "companyId", "ownerUid", "quoteId", "type", "toPlanId", "status"]
+    },
+    "Invoice": {
+      "title": "Invoice",
+      "description": "Verified billing invoice / receipt issued in XOF (FCFA) after server confirmation.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "invoiceNumber": { "type": "string" },
+        "companyId": { "type": "string" },
+        "ownerUid": { "type": "string" },
+        "planId": { "type": "string" },
+        "totalPaidFCFA": { "type": "integer" },
+        "currency": { "type": "string", "enum": ["XOF"] },
+        "status": { "type": "string", "enum": ["PAID", "PENDING", "VOID", "FAILED"] },
+        "transactionReference": { "type": "string" },
+        "issuedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "invoiceNumber", "companyId", "ownerUid", "totalPaidFCFA", "currency", "status", "issuedAt"]
+    },
+    "BillingLedgerEntry": {
+      "title": "BillingLedgerEntry",
+      "description": "Immutable financial ledger entries (charges, credits issued/applied, adjustments).",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "companyId": { "type": "string" },
+        "ownerUid": { "type": "string" },
+        "entryType": { "type": "string", "enum": ["CHARGE", "CREDIT_ISSUED", "CREDIT_APPLIED", "REFUND", "ADJUSTMENT"] },
+        "amountFCFA": { "type": "integer" },
+        "currency": { "type": "string" },
+        "reference": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "companyId", "ownerUid", "entryType", "amountFCFA", "createdAt"]
+    },
+    "Entitlement": {
+      "title": "Entitlement",
+      "description": "Authoritative feature flags and numeric quotas enforced server-side per company.",
+      "type": "object",
+      "properties": {
+        "companyId": { "type": "string" },
+        "ownerUid": { "type": "string" },
+        "planId": { "type": "string" },
+        "status": { "type": "string" },
+        "maxWhatsappConnections": { "type": "integer" },
+        "maxMonthlyConversations": { "type": "integer" },
+        "maxLeads": { "type": "integer" },
+        "maxAiAgents": { "type": "integer" },
+        "maxCampaignsPerMonth": { "type": "integer" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["companyId", "ownerUid", "planId", "status", "updatedAt"]
+    },
+    "UsageMeter": {
+      "title": "UsageMeter",
+      "description": "Live resource consumption snapshot computed from real CRM, WhatsApp, and campaign records.",
+      "type": "object",
+      "properties": {
+        "companyId": { "type": "string" },
+        "ownerUid": { "type": "string" },
+        "whatsappConnections": { "type": "integer" },
+        "monthlyConversations": { "type": "integer" },
+        "leadsCount": { "type": "integer" },
+        "aiAgents": { "type": "integer" },
+        "campaignsThisMonth": { "type": "integer" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["companyId", "ownerUid", "updatedAt"]
+    },
+    "BillingAuditEvent": {
+      "title": "BillingAuditEvent",
+      "description": "Audit log of subscription lifecycle events and Paystack reconciliations.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "companyId": { "type": "string" },
+        "ownerUid": { "type": "string" },
+        "actorUid": { "type": "string" },
+        "action": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "companyId", "ownerUid", "action", "timestamp"]
     }
   },
   "firestore": {
@@ -239,6 +361,34 @@
     "/knowledge_versions/{versionId}": {
       "schema": "KnowledgeVersion",
       "description": "Versioned snapshots of approved company knowledge bases"
+    },
+    "/billing_quotes/{quoteId}": {
+      "schema": "BillingQuote",
+      "description": "Server-calculated expiring billing quotes"
+    },
+    "/subscription_change_requests/{requestId}": {
+      "schema": "SubscriptionChangeRequest",
+      "description": "Upgrade, downgrade, and checkout state machine records"
+    },
+    "/invoices/{invoiceId}": {
+      "schema": "Invoice",
+      "description": "Paid/issued XOF subscription invoices"
+    },
+    "/billing_ledger/{entryId}": {
+      "schema": "BillingLedgerEntry",
+      "description": "Immutable billing financial ledger"
+    },
+    "/entitlements/{companyId}": {
+      "schema": "Entitlement",
+      "description": "Server-controlled feature and quota entitlements"
+    },
+    "/usage_meters/{companyId}": {
+      "schema": "UsageMeter",
+      "description": "Real-time workspace usage counters"
+    },
+    "/billing_audit_events/{eventId}": {
+      "schema": "BillingAuditEvent",
+      "description": "Subscription and payment audit trail"
     }
   }
 }

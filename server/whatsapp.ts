@@ -4,6 +4,7 @@ import { getServerDb } from "./db";
 import { doc, getDoc, setDoc, updateDoc, addDoc, collection, query, where, getDocs, serverTimestamp } from "firebase/firestore";
 import { verifyMetaWebhookSignature } from "./webhook-verify";
 import { checkWhatsAppServiceWindow } from "../src/lib/whatsapp";
+import { checkCompanyQuota } from "./subscriptions";
 
 // In-memory set for fast deduplication within current process lifecycle
 const processedMessageIds = new Set<string>();
@@ -201,6 +202,17 @@ export async function sendWhatsAppMessage(req: AuthenticatedRequest, res: Respon
     }
   } catch (err: any) {
     console.warn("[WhatsApp Send] Warning during window verification:", err.message);
+  }
+
+  // 1b. Enforce Company Subscription Entitlements (Quota check)
+  if (req.user?.companyId) {
+    const quota = await checkCompanyQuota(req.user.companyId, "send_message");
+    if (!quota.allowed) {
+      return res.status(402).json({
+        error: "QUOTA_EXCEEDED",
+        message: quota.reason || "Plafond de conversations atteint sur votre offre actuelle."
+      });
+    }
   }
 
   // 2. Check Meta Cloud API Configuration

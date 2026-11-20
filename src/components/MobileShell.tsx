@@ -13,6 +13,7 @@ import {
   LogOut,
   ChevronRight,
   Zap,
+  Crown,
 } from 'lucide-react';
 import CurrencySwitcher from './CurrencySwitcher';
 import FikoConnectLogo from './FikoConnectLogo';
@@ -148,6 +149,12 @@ export function MobileMoreSheet({
       label: 'Paiements Paystack',
       sub: 'Liens d’encaissement & Grand Livre FCFA',
       icon: CreditCard,
+    },
+    {
+      name: 'Nos Offres',
+      label: 'Nos Offres & Forfaits',
+      sub: 'Abonnement, prorata, factures & quotas',
+      icon: Crown,
     },
     {
       name: 'Analytics',

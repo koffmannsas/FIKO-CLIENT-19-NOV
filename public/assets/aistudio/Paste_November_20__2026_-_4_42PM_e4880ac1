@@ -1,0 +1,905 @@
+# **FIKO CONNECT™ — NOS OFFRES V1.0**
+
+Subscription Management & Smart Billing Engine
+
+Nous allons transformer la section **« Nos offres »** en un véritable centre de gestion des abonnements SaaS, intégré directement au tableau de bord client Fiko Connect.
+
+L'objectif n'est pas simplement d'afficher les tarifs. Chaque entreprise devra pouvoir **s'abonner, changer de forfait, payer la différence, suivre sa consommation et bénéficier automatiquement des nouvelles fonctionnalités autorisées par son abonnement.**
+
+## **1. Grille tarifaire identifiée sur vos captures**
+
+Essai
+
+#### **0**
+
+FCFA
+
+7 jours
+
+Starter
+
+#### **19 000**
+
+FCFA
+
+/mois
+
+Growth
+
+#### **49 000**
+
+FCFA
+
+/mois
+
+Pro
+
+#### **99 000**
+
+FCFA
+
+/mois
+
+Elite
+
+#### **199 000**
+
+FCFA
+
+/mois
+
+Tarifs mensuels affichés sur les captures fournies, non encore vérifiés dans le catalogue de facturation réel. La page affiche également une réduction annuelle de 20 %.
+
+**Point à arbitrer avant activation des paiements :** cette nouvelle présentation utilise les noms Growth et Pro, avec un tarif Starter de 19 000 FCFA, alors que des références antérieures du projet utilisaient Business, Scale et Starter à 19 900 FCFA. Le moteur doit donc rechercher et faire confirmer le catalogue tarifaire officiel avant tout encaissement. Il ne faut jamais facturer à partir de valeurs simplement copiées d'une maquette.
+
+## **2. Comportement commercial attendu**
+
+| Action du client | Comportement de Fiko Connect                                          |
+| ---------------- | --------------------------------------------------------------------- |
+| Souscrire        | Paiement vérifié, puis activation du forfait                          |
+| Upgrade          | Calcul automatique du montant supplémentaire pour la période restante |
+| Downgrade        | Nouveau forfait programmé à la prochaine échéance, par défaut         |
+| Mensuel → annuel | Simulation du nouveau prix et du crédit éventuel avant validation     |
+| Renouvellement   | Facturation selon le cycle et le mode de paiement autorisés           |
+| Paiement échoué  | Conserver l'état précédent et proposer une régularisation             |
+| Limite atteinte  | Informer, proposer un upgrade et protéger les données existantes      |
+
+### **Exemple de calcul : Starter vers Pro**
+
+Forfait actuel
+
+**Starter — 19 000 FCFA**
+
+Nouveau forfait
+
+**Pro — 99 000 FCFA**
+
+Période restante
+
+**15 jours sur 30**
+
+\\[ (99\\,000-19\\,000)\times\frac{15}{30} \\]
+
+**Supplément à payer**
+
+# **40 000 FCFA**
+
+Exemple illustratif hors taxes et frais éventuels, supposant un forfait Starter entièrement payé et un cycle mensuel commun. Le calcul réel utilisera les dates exactes et les crédits disponibles.
+
+Le client paie uniquement le supplément de 40 000 FCFA dans cet exemple. Après confirmation de son paiement, ses nouveaux droits Pro sont activés. À l'échéance suivante, le prix mensuel complet du forfait Pro s'applique.
+
+Le module doit gérer ces opérations par un **moteur de facturation serveur**, et non par de simples calculs affichés dans React.
+
+## **3. Prompt nucléaire pour Google AI Studio**
+
+Une précaution technique importante : Paystack documente les abonnements récurrents automatiques par carte et par prélèvement bancaire au Nigeria. Il ne faut donc pas supposer qu'un paiement Mobile Money peut être prélevé automatiquement chaque mois. Le module devra distinguer **paiement ponctuel, abonnement récurrent réellement pris en charge et renouvellement manuel**.&#x20;
+
+[image](https://www.google.com/s2/favicons?domain=https://paystack.com\&sz=32)
+
+Paystack Developer Documentation+2
+
+
+
+# FIKO CONNECT™ — SUBSCRIPTION INTELLIGENCE ENGINE V1.0
+
+## MISSION NUCLÉAIRE : CONSTRUCTION DU MODULE « NOS OFFRES »
+
+**Émetteur :** Présidence — Koffmann Capital Group
+
+**Application cible :** clients.fiko-connect.com
+
+**Module :** Nos Offres — Subscription & Billing Management
+
+**Stack existante à préserver :** React / Vite / Firebase / Firestore / services Node.js, selon l'architecture réellement détectée.
+
+**Priorité :** Fonctionnalité SaaS réelle, paiement fiable, calcul financier exact, zéro régression.
+
+---
+
+# 1. MISSION PRINCIPALE
+
+Créer et intégrer dans le tableau de bord client FIKO CONNECT™ un module complet nommé :
+
+**NOS OFFRES**
+
+Ce module doit permettre à chaque entreprise cliente de :
+
+1. Consulter toutes les offres Fiko Connect disponibles.
+2. Identifier immédiatement son abonnement actuel.
+3. Comparer les fonctionnalités et quotas.
+4. Souscrire à une nouvelle offre.
+5. Passer à une offre supérieure (upgrade).
+6. Passer à une offre inférieure (downgrade).
+7. Passer d'une facturation mensuelle à annuelle et inversement.
+8. Calculer automatiquement les ajustements financiers.
+9. Visualiser le montant exact avant toute opération.
+10. Payer via les méthodes réellement disponibles.
+11. Activer les droits correspondants après validation du paiement.
+12. Consulter son historique de facturation.
+13. Gérer le renouvellement et la résiliation.
+14. Suivre la consommation réelle de son forfait.
+
+**Ce module doit être 100 % relié au compte entreprise et aux services métier.**
+
+Il est interdit de construire une simple maquette commerciale simulant des paiements ou des changements d'abonnement.
+
+---
+
+# 2. PHASE 0 — AUDIT IMPÉRATIF DE L'EXISTANT
+
+Avant toute implémentation :
+
+Inspecter le dépôt et identifier :
+
+- Les composants d'authentification.
+- Le tenant ou compte entreprise connecté.
+- Le système de gestion des utilisateurs et rôles.
+- Les pages de tarification existantes.
+- Les configurations d'abonnement.
+- Les plans enregistrés dans Firestore.
+- Les intégrations de paiement existantes.
+- Les webhooks Paystack.
+- Les mécanismes de gestion des quotas.
+- Les données de consommation.
+- Les éventuelles factures et transactions.
+- Les règles de sécurité Firestore.
+- Les routes et composants du Dashboard.
+
+Ne recréer aucun service déjà fonctionnel.
+
+Ne pas modifier les composants de la landing page sans nécessité.
+
+Ne pas écraser les données des abonnements existants.
+
+Produire un inventaire des composants réutilisables et des éléments manquants.
+
+---
+
+# 3. CATALOGUE CENTRALISÉ DES OFFRES
+
+Les captures de référence présentent cinq offres :
+
+| Offre         | Prix mensuel affiché |
+| ------------- | -------------------- |
+| Essai Gratuit | 0 FCFA / 7 jours     |
+| Starter       | 19 000 FCFA          |
+| Growth        | 49 000 FCFA          |
+| Pro           | 99 000 FCFA          |
+| Elite         | 199 000 FCFA         |
+
+Elles affichent également une réduction annuelle de 20 %.
+
+**Ces valeurs sont des données de référence visuelle, pas une autorisation de facturation.**
+
+Avant activation des paiements :
+
+- Comparer avec les tarifs actuellement enregistrés.
+- Identifier les anciennes offres Business et Scale, si elles existent.
+- Établir la correspondance entre anciens et nouveaux plans.
+- Préserver les contrats historiques.
+- Signaler toute différence de prix.
+- Exiger la validation des prix officiels par la Présidence.
+- Ne pas lancer de facturation réelle si le catalogue n'est pas approuvé.
+
+Créer un catalogue centralisé et versionné avec :
+
+- Identifiant permanent du plan.
+- Nom commercial.
+- Description.
+- Prix mensuel.
+- Prix annuel.
+- Devise.
+- Fréquence de facturation.
+- Durée d'essai.
+- Fonctionnalités incluses.
+- Quotas.
+- Disponibilité commerciale.
+- Version tarifaire.
+- Date d'entrée en vigueur.
+
+Une modification de prix ne doit pas modifier rétroactivement les factures ou contrats existants.
+
+La landing page publique et l'application client doivent utiliser une source tarifaire commune approuvée, sans duplication arbitraire des montants.
+
+---
+
+# 4. DESIGN — ESPACE « NOS OFFRES »
+
+Ajouter dans la navigation latérale du Dashboard une entrée :
+
+**Nos Offres**
+
+Utiliser la même identité visuelle que le Dashboard existant :
+
+- Noir profond.
+- Rouge officiel Fiko Connect.
+- Typographie premium.
+- Bordures fines.
+- Cartes élégantes.
+- Animations maîtrisées.
+- Responsive desktop et mobile.
+- Logo officiel conservé.
+
+## A. Tableau de bord de l'abonnement actuel
+
+En haut de la page, afficher une carte premium :
+
+**MON ABONNEMENT**
+
+Informations :
+
+- Nom de l'offre actuelle.
+- Statut : essai, actif, paiement en attente, retard de paiement, résilié, expiré.
+- Prix facturé.
+- Période de facturation.
+- Date de début.
+- Date de renouvellement.
+- Montant de la prochaine échéance.
+- Mode de paiement.
+- Consommation des quotas.
+- Changement de plan programmé, le cas échéant.
+
+Actions principales :
+
+**Changer d'offre**
+
+**Gérer mon abonnement**
+
+**Voir mes factures**
+
+## B. Catalogue des cinq offres
+
+Afficher les cinq cartes commerciales.
+
+Chaque carte doit présenter :
+
+- Nom.
+- Prix.
+- Description.
+- Fonctionnalités.
+- Quotas.
+- Type de support.
+- Statut par rapport à l'abonnement actuel.
+- Bouton d'action.
+
+Étiquettes dynamiques :
+
+- Offre actuelle.
+- Passer à cette offre.
+- Réduire mon forfait.
+- Essayer gratuitement.
+- Recommandée, uniquement selon les critères commerciaux configurés.
+
+Le bouton du forfait actuel ne doit jamais lancer une nouvelle facturation.
+
+## C. Comparaison détaillée
+
+Ajouter une comparaison des offres par fonctionnalité :
+
+- Connexions WhatsApp.
+- Conversations mensuelles.
+- Gestion CRM.
+- Qualification IA.
+- Agents IA.
+- Campagnes.
+- Relances automatisées.
+- Analytics.
+- Intégrations.
+- Support.
+- Fonctionnalités avancées.
+
+Lire les droits et quotas depuis le catalogue réel.
+
+Ne pas attribuer une fonctionnalité à une offre sans configuration validée.
+
+---
+
+# 5. SMART UPGRADE ENGINE™
+
+Créer un moteur de changement vers un forfait supérieur avec ajustement proratisé.
+
+## Exemple de référence
+
+Client actuellement sur Starter :
+
+19 000 FCFA / mois.
+
+Il souhaite passer à Pro :
+
+99 000 FCFA / mois.
+
+Il reste 15 jours sur un cycle de 30 jours.
+
+Différence mensuelle :
+
+99 000 − 19 000 = 80 000 FCFA.
+
+Prorata :
+
+80 000 × 15 / 30 = 40 000 FCFA.
+
+**Montant supplémentaire : 40 000 FCFA.**
+
+Après paiement confirmé :
+
+- Activer le forfait Pro.
+- Augmenter les quotas.
+- Donner accès aux modules Pro autorisés.
+- Conserver les données et conversations.
+- Conserver la date de renouvellement si la politique de facturation prévoit un cycle inchangé.
+- Afficher le nouveau montant de renouvellement.
+- Générer la preuve de transaction.
+
+## Règles financières impératives
+
+Le calcul ne doit pas supposer que tous les mois comportent 30 jours.
+
+Calculer la fraction restante à partir des dates réelles du cycle, des instants UTC et de la politique commerciale approuvée.
+
+Pour un upgrade sur le même cycle :
+
+Crédit inutilisé = prix payé pour le cycle actuel × fraction inutilisée.
+
+Coût du nouveau forfait sur la période restante = nouveau prix du cycle × fraction restante.
+
+Montant à payer = coût nouveau − crédit inutilisé − autres crédits applicables.
+
+Si le cycle change, produire un calcul spécifique et afficher les dates d'effet.
+
+Prendre en compte :
+
+- Réductions applicables.
+- Crédits déjà disponibles.
+- Taxes configurées.
+- Frais éventuels.
+- Arrondis.
+- Devise.
+- Factures impayées.
+- Changement mensuel/annuel.
+
+Utiliser des calculs décimaux exacts ou des unités monétaires entières appropriées.
+
+Ne jamais utiliser des nombres flottants non contrôlés pour les montants financiers.
+
+Le frontend affiche uniquement le devis calculé par le serveur.
+
+---
+
+# 6. SMART DOWNGRADE ENGINE™
+
+Permettre à une entreprise de réduire son abonnement.
+
+Exemple :
+
+Client actuellement Pro à 99 000 FCFA / mois.
+
+Il souhaite passer à Growth à 49 000 FCFA / mois.
+
+**Comportement par défaut :**
+
+- Conserver Pro jusqu'à la fin de la période payée.
+- Programmer Growth à la prochaine échéance.
+- Afficher la date exacte du changement.
+- Afficher le prochain montant dû : 49 000 FCFA, selon le catalogue approuvé.
+- Ne pas effectuer de remboursement automatique.
+- Ne pas désactiver prématurément les fonctionnalités Pro.
+
+Le client doit pouvoir annuler son downgrade programmé avant son exécution.
+
+## Gestion des dépassements de quotas
+
+Si le nouveau plan permet deux comptes WhatsApp et que l'entreprise en possède cinq :
+
+- Ne supprimer aucun compte automatiquement.
+- Afficher les trois connexions dépassant le quota.
+- Proposer de choisir les connexions à conserver actives.
+- Suspendre les usages excédentaires conformément aux règles approuvées.
+- Préserver les historiques et données.
+- Permettre une réactivation après upgrade.
+
+Appliquer la même logique aux agents IA, contacts, campagnes et autres ressources.
+
+Les règles d'accès doivent être définies pour chaque fonctionnalité.
+
+---
+
+# 7. FACTURATION MENSUELLE ET ANNUELLE
+
+Intégrer un sélecteur :
+
+**Mensuel | Annuel**
+
+La réduction annuelle affichée sur la page commerciale est de 20 %, sous réserve de validation du catalogue.
+
+Formule indicative :
+
+Prix annuel = prix mensuel × 12 × 0,80.
+
+Pour Pro :
+
+99 000 × 12 × 0,80 = 950 400 FCFA/an.
+
+Cette formule ne doit être appliquée que si la politique commerciale confirme le pourcentage et les tarifs de référence.
+
+Pour un changement de fréquence :
+
+- Calculer les crédits inutilisés applicables.
+- Déterminer la nouvelle période.
+- Afficher la date de renouvellement.
+- Présenter le montant exact à payer.
+- Demander confirmation explicite.
+- Ne pas appliquer de changement caché.
+
+Un changement annuel vers mensuel doit, par défaut, prendre effet à l'échéance annuelle, sauf règle commerciale contraire explicitement approuvée.
+
+---
+
+# 8. MODAL DE CONFIRMATION FINANCIÈRE
+
+Lorsqu'un client choisit une autre offre, ouvrir un panneau premium intitulé :
+
+**CONFIRMER MON CHANGEMENT D'OFFRE**
+
+Afficher :
+
+- Offre actuelle.
+- Nouvelle offre.
+- Prix actuel.
+- Nouveau prix.
+- Période restante.
+- Crédit non consommé.
+- Taxes et frais applicables.
+- Réduction éventuelle.
+- Montant à payer maintenant.
+- Montant du prochain renouvellement.
+- Date de prise d'effet.
+- Fonctionnalités gagnées.
+- Fonctionnalités perdues, si downgrade.
+
+CTA :
+
+**Confirmer et payer**
+
+ou
+
+**Programmer mon changement**
+
+selon le cas.
+
+Aucun paiement ne doit être effectué tant que le client n'a pas confirmé le devis.
+
+Chaque devis doit disposer d'un identifiant, d'une durée de validité et d'une version du tarif.
+
+Recalculer côté serveur si le devis expire ou si l'état de l'abonnement change.
+
+---
+
+# 9. PAYSTACK — PAIEMENT RÉEL ET SÉCURISÉ
+
+Auditer l'intégration Paystack existante avant toute modification.
+
+Construire ou compléter un adaptateur de paiement sécurisé.
+
+## Workflow
+
+1. Le client sélectionne une offre.
+2. Le backend authentifie l'utilisateur et son entreprise.
+3. Le moteur calcule le devis.
+4. Le client valide le devis.
+5. Le backend crée une opération de changement en attente.
+6. Le paiement est initialisé côté serveur.
+7. Le client utilise le canal disponible.
+8. Le serveur vérifie le résultat auprès du prestataire.
+9. Le webhook authentifié déclenche une réconciliation idempotente.
+10. L'abonnement et les droits sont mis à jour de façon cohérente.
+11. La transaction est enregistrée dans le journal financier.
+12. Le tableau de bord se met à jour.
+
+Ne jamais activer un upgrade sur la seule base du retour visuel du navigateur.
+
+Vérifier la référence, le montant, la devise, le statut et le bénéficiaire attendu.
+
+## Gestion des modes de paiement
+
+Distinguer :
+
+- Paiement ponctuel.
+- Paiement automatique récurrent effectivement disponible.
+- Renouvellement manuel.
+
+Vérifier la disponibilité de chaque canal pour le compte marchand, le pays, la devise et la méthode de paiement.
+
+Ne pas annoncer de prélèvement Mobile Money automatique sans preuve de prise en charge.
+
+Si un canal ne prend pas en charge la récurrence, mettre en place un renouvellement manuel explicite avec rappels, plutôt qu'une simulation d'automatisation.
+
+## Sécurité
+
+- Clés secrètes exclusivement côté serveur.
+- Vérification de la signature des webhooks selon la documentation actuelle du prestataire.
+- Vérification du paiement auprès du fournisseur.
+- Idempotence des opérations.
+- Protection contre les doubles débits.
+- Protection contre les doubles activations.
+- Gestion des webhooks reçus dans le désordre.
+- Journal financier immuable ou traçable.
+- Traitement des remboursements et litiges.
+
+Aucun changement ne doit être considéré comme finalisé avant confirmation autorisée.
+
+---
+
+# 10. ARCHITECTURE FIRESTORE — MULTI-TENANT
+
+Réutiliser les collections existantes quand elles remplissent déjà ces rôles.
+
+Sinon, prévoir des entités logiques équivalentes à :
+
+**PlanCatalog**
+
+- Plans et versions tarifaires.
+
+**Subscriptions**
+
+- Abonnement actif de chaque entreprise.
+
+**SubscriptionChangeRequests**
+
+- Changements demandés ou programmés.
+
+**BillingQuotes**
+
+- Devis et calculs de prorata.
+
+**Invoices**
+
+- Factures et états de paiement.
+
+**PaymentTransactions**
+
+- Transactions et références prestataires.
+
+**BillingLedger**
+
+- Débits, crédits et ajustements comptables.
+
+**UsageMeters**
+
+- Consommation par entreprise et par période.
+
+**Entitlements**
+
+- Droits fonctionnels associés au plan.
+
+**BillingAuditEvents**
+
+- Historique des décisions et changements.
+
+Chaque entité doit être rattachée au bon tenant et posséder une traçabilité adaptée.
+
+## Sécurité
+
+- Isolation stricte par entreprise.
+- Accès à la facturation réservé aux rôles autorisés.
+- Lecture du catalogue public séparée des informations privées.
+- Interdiction de modifier son plan ou ses droits directement depuis le frontend.
+- Vérification des rôles et autorisations côté serveur.
+- Opérations transactionnelles ou équivalentes pour éviter les incohérences.
+
+Ne jamais utiliser de valeur tarifaire transmise par le frontend comme vérité financière.
+
+---
+
+# 11. ENTITLEMENTS ENGINE — ACTIVATION DES DROITS
+
+Créer un moteur centralisé de droits qui traduit chaque abonnement en fonctionnalités réellement accessibles.
+
+Lorsqu'une entreprise change de forfait, ce moteur doit actualiser :
+
+- Nombre autorisé de connexions WhatsApp.
+- Quotas de conversations.
+- Capacités CRM.
+- Accès aux campagnes.
+- Relances automatiques.
+- Nombre d'agents IA.
+- Fonctionnalités analytiques.
+- Intégrations.
+- Niveau de support.
+- Autres limites configurées.
+
+Le contrôle doit être appliqué côté serveur, pas seulement en masquant des boutons React.
+
+Les compteurs doivent refléter la consommation réelle enregistrée.
+
+Ne pas réinitialiser artificiellement les quotas lors d'un upgrade au milieu du cycle.
+
+Définir explicitement les règles de réinitialisation à chaque période.
+
+En cas d'expiration ou de downgrade :
+
+**Préserver les données historiques du client.**
+
+Toute suspension d'usage doit être distincte d'une suppression de données.
+
+---
+
+# 12. FREE TRIAL ENGINE
+
+L'offre gratuite affichée dans les captures prévoit sept jours.
+
+Confirmer cette durée avec les paramètres existants.
+
+Implémenter :
+
+- Début d'essai réel.
+- Date d'expiration.
+- Quotas d'essai configurables.
+- Consommation mesurée.
+- Rappels avant expiration.
+- Passage vers une offre payante.
+- Prévention des essais gratuits répétés abusivement.
+- Préservation des données à expiration selon la politique de rétention.
+
+Ne pas renouveler automatiquement une période d'essai en supprimant et recréant le compte.
+
+Ne pas commencer un abonnement payant sans consentement approprié.
+
+---
+
+# 13. BILLING HISTORY & CUSTOMER PORTAL
+
+Créer dans « Nos Offres » un espace :
+
+**FACTURATION ET HISTORIQUE**
+
+Afficher :
+
+- Paiements réussis.
+- Paiements en attente.
+- Paiements échoués.
+- Factures.
+- Crédits disponibles.
+- Ajustements.
+- Historique des upgrades.
+- Historique des downgrades.
+- Prochaines échéances.
+- Mode de renouvellement.
+- Annulations programmées.
+
+Permettre au client de télécharger ses factures et justificatifs.
+
+Les factures doivent utiliser les informations légales réellement configurées.
+
+Ne pas inventer de numéro fiscal, de taxe ou de preuve de conformité.
+
+Prévoir une intégration ultérieure avec les systèmes de facturation réglementaire applicables sans la déclarer déjà réalisée.
+
+---
+
+# 14. SMART BILLING ASSISTANT™
+
+Ajouter une couche d'assistance décisionnelle non intrusive.
+
+Exemples :
+
+**Votre entreprise approche de sa limite de conversations.**
+
+Proposer une comparaison des offres supérieures.
+
+**Vous utilisez une faible partie de vos capacités Pro.**
+
+Présenter éventuellement Growth comme alternative, si les fonctionnalités et quotas nécessaires le permettent.
+
+**Votre renouvellement approche.**
+
+Afficher le montant attendu et l'échéance.
+
+Ces recommandations doivent être fondées sur des données réelles de consommation.
+
+Ne jamais changer automatiquement le forfait ni initier un paiement sur la seule recommandation de l'IA.
+
+---
+
+# 15. RESPONSIVE MOBILE — PREMIUM APP EXPERIENCE
+
+Sur desktop :
+
+- Cartes d'offres.
+- Comparateur.
+- Historique.
+- Gestion de l'abonnement.
+
+Sur mobile :
+
+- Carte d'abonnement actuelle visible immédiatement.
+- Offres présentées dans un carousel horizontal.
+- Prix très lisibles.
+- Boutons accessibles.
+- Résumé financier compact.
+- Modal de confirmation adaptée à l'écran.
+- Historique consultable sans débordement horizontal.
+
+Préserver le branding officiel Fiko Connect.
+
+Éviter toute page mobile excessivement longue ou illisible.
+
+---
+
+# 16. TESTS FINANCIERS OBLIGATOIRES
+
+Créer des tests automatisés pour :
+
+1. Première souscription.
+2. Upgrade avec prorata.
+3. Upgrade le dernier jour du cycle.
+4. Upgrade avec crédit déjà disponible.
+5. Downgrade programmé.
+6. Annulation d'un downgrade.
+7. Passage mensuel vers annuel.
+8. Renouvellement annuel vers mensuel.
+9. Paiement refusé.
+10. Paiement interrompu.
+11. Double webhook.
+12. Webhooks hors ordre.
+13. Tentative de paiement en double.
+14. Devis expiré.
+15. Modification du catalogue pendant une opération.
+16. Expiration de l'essai gratuit.
+17. Dépassement des quotas.
+18. Entreprise possédant plus de ressources que son futur forfait.
+19. Tentative de modification de l'abonnement d'un autre tenant.
+20. Vérification des droits après paiement.
+21. Échec technique entre confirmation du paiement et activation.
+22. Rapprochement d'une transaction non synchronisée.
+23. Changement pendant un renouvellement.
+24. Calcul sur un mois de 28, 29 ou 31 jours.
+25. Vérification des montants et arrondis en FCFA.
+
+Tester également les comportements sur mobile et desktop.
+
+Utiliser un environnement de paiement de test pour toutes les validations initiales.
+
+Aucun paiement réel ne doit être déclenché par les tests.
+
+---
+
+# 17. DÉPLOIEMENT SÉCURISÉ
+
+Procéder progressivement :
+
+**PHASE A — Audit**\
+Identifier le système existant et le catalogue réel.
+
+**PHASE B — Interface**\
+Développer « Nos Offres » avec des données de test clairement identifiées.
+
+**PHASE C — Billing Engine**\
+Implémenter et tester les calculs financiers.
+
+**PHASE D — Paiement**\
+Connecter les transactions réelles en environnement de test.
+
+**PHASE E — Entitlements**\
+Synchroniser les abonnements avec les quotas métier.
+
+**PHASE F — Certification**\
+Tester les scénarios critiques et les erreurs.
+
+**PHASE G — Préproduction**\
+Valider le parcours complet sur l'environnement de préproduction.
+
+Ne pas activer la facturation de production avant validation de la Présidence.
+
+Préserver l'ancienne facturation et prévoir un rollback sécurisé si des abonnements existent déjà.
+
+---
+
+# 18. LIVRABLES OBLIGATOIRES
+
+Créer les rapports suivants :
+
+- `SUBSCRIPTION_CATALOG_AUDIT.md`
+- `FIKO_OFFERS_IMPLEMENTATION_REPORT.md`
+- `BILLING_ENGINE_CERTIFICATION.md`
+- `PAYMENT_INTEGRATION_TEST_REPORT.md`
+- `ENTITLEMENTS_VALIDATION_REPORT.md`
+- `SUBSCRIPTION_PRODUCTION_READINESS.md`
+
+Chaque rapport doit distinguer :
+
+- Implémenté.
+- Testé.
+- Vérifié.
+- À configurer.
+- Bloqué.
+
+Ne jamais qualifier de « fonctionnel » un flux non exécuté de bout en bout.
+
+---
+
+# 19. CRITÈRES DE CERTIFICATION FINALE
+
+La mission n'est certifiée que lorsque :
+
+- Le client voit son véritable forfait.
+- Les prix proviennent du catalogue approuvé.
+- Les changements de forfait fonctionnent réellement.
+- Le prorata est exact.
+- Les downgrades programmés sont exécutés au bon moment.
+- Les paiements sont vérifiés.
+- Les transactions ne peuvent pas être comptabilisées deux fois.
+- Les quotas sont réellement appliqués.
+- Les données des clients sont préservées.
+- Les opérations sont isolées par entreprise.
+- Les factures et historiques sont traçables.
+- Les tests critiques passent.
+- Le module n'introduit aucune régression métier.
+
+## DIRECTIVE FINALE À GOOGLE AI STUDIO
+
+Tu agis comme une équipe combinant :
+
+- Lead SaaS Architect.
+- Senior Fintech Engineer.
+- Billing Systems Engineer.
+- Firebase Security Architect.
+- Senior React Product Designer.
+- QA Automation Engineer.
+
+Construis le module « Nos Offres » comme une véritable infrastructure commerciale et financière.
+
+**Ne construis pas une simple page de tarifs.**
+
+Construis un système capable de gérer les abonnements, les calculs financiers, les paiements, les droits d'accès et les changements de forfait de milliers d'entreprises, sans duplication de facturation ni perte de données.
+
+**MISSION : FIKO CONNECT SUBSCRIPTION INTELLIGENCE ENGINE V1.0**
+
+**Priorité absolue : calcul exact, paiement vérifié, activation réelle, sécurité multi-tenant et zéro régression.**
+
+Exécuter l'audit, implémenter, tester et remettre les rapports de certification, sans déploiement de production non autorisé.
+
+## **4. Intégration au tableau de bord Fiko Connect**
+
+Le nouveau menu doit s'insérer dans la navigation métier existante, de préférence près des paramètres et des paiements.
+
+Dashboard
+
+Conversations
+
+Paiements
+
+**Nos Offres**
+
+Mon abonnement
+
+Comparer les offres
+
+Factures et historique
+
+Analytics
+
+Settings
+
+**La prochaine priorité technique est le moteur de facturation et d'activation des droits.** C'est lui qui garantit qu'un client passant de Starter à Pro ne voit pas seulement son badge changer : il bénéficie réellement de ses nouveaux quotas, de ses fonctionnalités et d'une facturation correcte.
+
+Pour les intégrations financières, les références officielles sont la [documentation des abonnements Paystack](https://paystack.com/docs/payments/subscriptions/?utm_source=chatgpt.com) et la [vérification serveur des paiements](https://paystack.com/docs/payments/verify-payments/?utm_source=chatgpt.com).

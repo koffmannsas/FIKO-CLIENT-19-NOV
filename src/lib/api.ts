@@ -98,3 +98,87 @@ export async function apiUpdateLeadStage(leadId: string | number, newStatus: str
   }
   return data;
 }
+
+export async function apiGetSubscriptionOverview() {
+  const headers = await getAuthHeaders();
+  const res = await fetch('/api/subscriptions/overview', { headers });
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.message || 'Impossible de charger les offres.');
+  }
+  return data;
+}
+
+export async function apiCreateSubscriptionQuote(
+  targetPlanId: string,
+  targetCycle: 'monthly' | 'annual'
+) {
+  const headers = await getAuthHeaders();
+  const res = await fetch('/api/subscriptions/quote', {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ targetPlanId, targetCycle }),
+  });
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.message || 'Impossible de calculer le devis.');
+  }
+  return data;
+}
+
+export async function apiCheckoutSubscriptionChange(
+  quoteId: string,
+  selectedKeepResources: string[] = []
+) {
+  const headers = await getAuthHeaders();
+  const res = await fetch('/api/subscriptions/checkout', {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ quoteId, selectedKeepResources }),
+  });
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.message || 'Échec de la confirmation d’abonnement.');
+  }
+  return data;
+}
+
+export async function apiCancelScheduledDowngrade() {
+  const headers = await getAuthHeaders();
+  const res = await fetch('/api/subscriptions/downgrade/cancel', {
+    method: 'POST',
+    headers,
+  });
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.message || 'Impossible d’annuler le changement programmé.');
+  }
+  return data;
+}
+
+export async function apiCancelSubscriptionAtPeriodEnd() {
+  const headers = await getAuthHeaders();
+  const res = await fetch('/api/subscriptions/cancel', {
+    method: 'POST',
+    headers,
+  });
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.message || 'Impossible de programmer la résiliation.');
+  }
+  return data;
+}
+
+export async function apiReconcileSubscriptionPayment(reference: string) {
+  const headers = await getAuthHeaders();
+  const res = await fetch(`/api/subscriptions/reconcile/${encodeURIComponent(reference)}`, {
+    method: 'POST',
+    headers,
+  });
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.message || 'Échec de la réconciliation Paystack.');
+  }
+  return data;
+}
+

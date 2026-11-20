@@ -26,7 +26,8 @@ import {
   AlertTriangle,
   Zap,
   Bell,
-  Brain
+  Brain,
+  Crown
 } from 'lucide-react';
 import Dashboard from './components/Dashboard';
 import KnowledgeCenter from './components/KnowledgeCenter';
@@ -36,6 +37,7 @@ import CampaignsModule from './components/Campaigns';
 import ConversationsModule, { INITIAL_THREADS } from './components/Conversations';
 import { Thread } from './types';
 import PaymentsModule from './components/Payments';
+import OffersModule from './components/OffersModule';
 import AnalyticsModule from './components/Analytics';
 import QuantumGate from './components/QuantumGate';
 import CurrencySwitcher from './components/CurrencySwitcher';
@@ -73,6 +75,14 @@ export default function App() {
     return unsubscribe;
   }, [isDemoMode]);
 
+  // Automatically open Nos Offres when returning from Paystack subscription checkout
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('module') === 'nos_offres' || (params.get('paystack_ref') || '').startsWith('FIKO_SUB_')) {
+      setActiveItem('Nos Offres');
+    }
+  }, []);
+
   const menuItems = [
     { name: 'Dashboard', icon: LayoutDashboard },
     { name: 'Knowledge Center', icon: Brain },
@@ -81,6 +91,7 @@ export default function App() {
     { name: 'Conversations', icon: MessageSquareText },
     { name: 'Automation', icon: Bot },
     { name: 'Paiements', icon: CreditCard },
+    { name: 'Nos Offres', icon: Crown },
     { name: 'Analytics', icon: BarChart3 },
     { name: 'Settings', icon: Settings },
   ];
@@ -197,7 +208,7 @@ export default function App() {
                 </div>
               </div>
               <button 
-                onClick={() => setView('quantum')}
+                onClick={() => setActiveItem('Nos Offres')}
                 className="w-full bg-[#E10600] text-white py-1.5 rounded-lg font-bold text-[10px] tracking-wide uppercase hover:bg-red-700 transition active:scale-95 text-center cursor-pointer mt-1"
               >
                 Changer de forfait
@@ -321,7 +332,7 @@ export default function App() {
                     if (!isDemoMode) setAutoPilot((p) => !p);
                   }}
                   onNavigate={handleMobileNavigate}
-                  onUpgrade={() => setView('quantum')}
+                  onUpgrade={() => (isDemoMode ? setView('quantum') : handleMobileNavigate('Nos Offres'))}
                   onExpandDesktopDashboard={() => setMobileShowFullDashboard(true)}
                 />
               </div>
@@ -332,7 +343,7 @@ export default function App() {
               <Dashboard 
                 onboardingData={onboardingData} 
                 isDemoMode={isDemoMode}
-                onUpgrade={() => setView('quantum')} 
+                onUpgrade={() => (isDemoMode ? setView('quantum') : setActiveItem('Nos Offres'))} 
                 onOpenKnowledgeCenter={() => setActiveItem('Knowledge Center')}
               />
             </div>
@@ -354,6 +365,16 @@ export default function App() {
           />
         )}
         {activeItem === 'Paiements' && <PaymentsModule />}
+        {activeItem === 'Nos Offres' && (
+          <OffersModule
+            onboardingData={onboardingData}
+            isDemoMode={isDemoMode}
+            onSubscriptionUpdated={(newPlanId) =>
+              setOnboardingData((prev: any) => ({ ...prev, selectedPlan: newPlanId }))
+            }
+            onRequestDeployRealWorkspace={() => setView('quantum')}
+          />
+        )}
         {activeItem === 'Analytics' && <AnalyticsModule />}
         {activeItem === 'Settings' && (
           <div className="p-5 sm:p-6 bg-zinc-900/20 border border-white/5 rounded-3xl max-w-2xl">
@@ -395,7 +416,7 @@ export default function App() {
         onboardingData={onboardingData}
         onClose={() => setMobileMoreOpen(false)}
         onSelectItem={handleMobileNavigate}
-        onUpgrade={() => setView('quantum')}
+        onUpgrade={() => (isDemoMode ? setView('quantum') : handleMobileNavigate('Nos Offres'))}
         onLogout={handleLogout}
       />
     </div>
